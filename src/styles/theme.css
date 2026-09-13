@@ -8,6 +8,23 @@
   --ivory: #E8DCC2;
 }
 
+/* Vazirmatn variable webfont (SIL OFL license — see public/fonts/Vazirmatn-OFL-LICENSE.txt).
+   This @font-face declaration was MISSING before: theme.css referenced
+   font-family 'Vazirmatn' in `body` but never actually loaded any font file,
+   so every browser silently fell back to Tahoma/system-sans the whole time —
+   this is why the game's font looked generic/ugly regardless of what the
+   font-family list said. The variable font covers weight 100-900 in one
+   file, so font-weight in CSS (400/600/700/800 etc, already used throughout
+   the app) now actually renders the correct Vazirmatn weight. */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Variable.woff2') format('woff2-variations'),
+       url('/fonts/Vazirmatn-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 html, body, #root {

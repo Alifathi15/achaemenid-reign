@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { CardRow, GameState, StatKey } from '../engine/types';
 import { Icon } from '../components/Icons';
 import bearersData from '../data/bearers.json';
+import { previewSign, type StatPreviewSign } from '../engine/valueParser';
 
 interface BearerRow {
   key: string;
@@ -93,9 +94,38 @@ const STAT_META: Record<StatKey, { icon: string; label: string; color: string }>
   treasury: { icon: 'vessel', label: 'خزانه', color: 'var(--lapis)' },
 };
 
+const STAT_KEYS: StatKey[] = ['faith', 'army', 'people', 'treasury'];
+
 const DECIDE_THRESHOLD = 90;
-// distance of drag needed for the in-card Yes/No label + background tint to reach full strength
+// distance of drag needed for the in-card Yes/No label + background tint + top-stat preview to reach full strength
 const REVEAL_DISTANCE = 100;
+
+/** Reigns' actual mechanic (confirmed via GDC talk + Reddit "how do I know
+ * positive/negative impact" thread + BirthMoviesDeath review — see engine
+ * spec history): the 4 icons at the TOP of the screen fill/drain to show
+ * impact, and ONLY the stat(s) this card's current drag direction actually
+ * affects light up — the other icons stay dim. This replaces the old plain
+ * dot-indicator with the real up/down arrow + only-affected-icons behavior. */
+function StatPreviewArrow({ sign, opacity }: { sign: StatPreviewSign; opacity: number }) {
+  if (sign === 'none' || opacity <= 0) return null;
+  const isUp = sign === 'up';
+  const isMixed = sign === 'mixed';
+  const isLock = sign === 'lock';
+  const color = isLock ? 'var(--brown)' : isMixed ? 'var(--gold)' : isUp ? '#3f7d3a' : 'var(--oxide)';
+  return (
+    <div
+      style={{
+        position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+        width: 18, height: 18, borderRadius: '50%', background: color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: 11, fontWeight: 900, opacity, zIndex: 2,
+        boxShadow: '0 1px 4px rgba(0,0,0,.4)',
+      }}
+    >
+      {isLock ? '🔒' : isMixed ? '?' : isUp ? '↑' : '↓'}
+    </div>
+  );
+}
 
 export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   const [dragX, setDragX] = useState(0);
@@ -127,6 +157,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   //   shifts toward yellow/olive. Dragging left mirrors this with "No" / red.
   const yesStrength = dragX > 0 ? Math.min(1, dragX / REVEAL_DISTANCE) : 0;
   const noStrength = dragX < 0 ? Math.min(1, -dragX / REVEAL_DISTANCE) : 0;
+  const dragStrength = Math.max(yesStrength, noStrength);
 
   // Blend the portrait background from its base color toward the decision tint.
   const baseBg = 'var(--lapis)';
@@ -138,16 +169,33 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
       : baseBg;
   const portraitOpacityOverlay = Math.max(yesStrength, noStrength);
 
+  // Which stats does the CURRENT drag direction's decision actually affect?
+  // Only those get an arrow — the rest stay dim, matching the real game
+  // (BirthMoviesDeath review: "4 little icons... fill or drain depending on
+  // which way you swipe cards away" — only the relevant ones react).
+  const activeDelta = yesStrength > 0 ? card.yes : noStrength > 0 ? card.no : null;
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--ivory)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-around', padding: '16px 12px 8px', background: 'var(--brown)' }}>
-        {(Object.keys(STAT_META) as StatKey[]).map((key) => {
+        {STAT_KEYS.map((key) => {
           const meta = STAT_META[key];
           const value = state.stats[key];
+          const sign = activeDelta ? previewSign(activeDelta[key]) : 'none';
           return (
             <div key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 70 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={meta.icon} style={{ width: 17, height: 17, color: '#fff' }} />
+              <div style={{ position: 'relative', width: 32, height: 32 }}>
+                <StatPreviewArrow sign={sign} opacity={dragStrength} />
+                <div
+                  style={{
+                    width: 32, height: 32, borderRadius: '50%', background: meta.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: sign !== 'none' && dragStrength > 0 ? `0 0 0 ${2 * dragStrength}px rgba(255,255,255,${0.5 * dragStrength})` : 'none',
+                    transition: dragging ? 'none' : 'box-shadow .2s',
+                  }}
+                >
+                  <Icon name={meta.icon} style={{ width: 17, height: 17, color: '#fff' }} />
+                </div>
               </div>
               <div style={{ width: 60, height: 6, background: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${value}%`, background: meta.color, borderRadius: 3 }} />
@@ -180,12 +228,17 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
           <div style={{ flex: 1, background: baseBg, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ivory)', fontSize: 90 }}>
             {/* card background tint shifts to the decision color, like real Reigns */}
             <div style={{ position: 'absolute', inset: 0, background: portraitBg, opacity: portraitOpacityOverlay }} />
-            {/* in-card Yes/No label, top-left corner, fades in with drag distance */}
+            {/* in-card Yes/No label, top-left/right corner, fades in with drag
+                distance. text-shadow added so the label stays legible over
+                ANY portrait image regardless of its own colors/brightness —
+                previously plain ivory text could vanish against a light
+                background portrait with no way to read it while dragging. */}
             <div
               style={{
                 position: 'absolute', top: 16, left: 16, zIndex: 3,
                 color: 'var(--ivory)', fontSize: 22, fontWeight: 800,
                 opacity: yesStrength,
+                textShadow: '0 1px 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.6)',
               }}
             >
               {card.overrideYes ?? 'بله'}
@@ -195,6 +248,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
                 position: 'absolute', top: 16, right: 16, zIndex: 3,
                 color: 'var(--ivory)', fontSize: 22, fontWeight: 800,
                 opacity: noStrength,
+                textShadow: '0 1px 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.6)',
               }}
             >
               {card.overrideNo ?? 'خیر'}

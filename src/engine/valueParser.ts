@@ -76,3 +76,32 @@ export function resolveValue(parsed: ParsedValue): number | 'lock' | null {
       return null;
   }
 }
+
+/** Sign of a stat-delta cell for UI preview purposes ONLY — e.g. showing an
+ * up/down arrow on the affected stat while the player drags a card, before
+ * the decision is actually committed. Does NOT re-roll or consume a random
+ * value (that must stay a pure side-effect of resolveValue at decision time,
+ * or every render while dragging would burn a different roll). For a
+ * `RandInt(min,max)` cell, sign is taken from the midpoint of the range: if
+ * the range straddles zero (min<0<max) the preview is 'mixed' rather than
+ * falsely claiming a clean up or down. */
+export type StatPreviewSign = 'up' | 'down' | 'mixed' | 'lock' | 'none';
+
+export function previewSign(raw: number | string | null | undefined): StatPreviewSign {
+  const parsed = parseRawValue(raw);
+  switch (parsed.kind) {
+    case 'lock':
+      return 'lock';
+    case 'none':
+      return 'none';
+    case 'number':
+      if (parsed.value > 0) return 'up';
+      if (parsed.value < 0) return 'down';
+      return 'none';
+    case 'random': {
+      const mid = (parsed.min + parsed.max) / 2;
+      if (parsed.min < 0 && parsed.max > 0) return 'mixed';
+      return mid > 0 ? 'up' : mid < 0 ? 'down' : 'none';
+    }
+  }
+}
