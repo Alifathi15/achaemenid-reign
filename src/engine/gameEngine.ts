@@ -21,7 +21,13 @@ export function createInitialState(): GameState {
     dynasty: 1,
     flags: {},
     counters: {},
-    activeBearers: new Set(['anyone', 'general', 'priest', 'merchant', 'farmer', 'monk']),
+    // Default-active bearers at game start. Confirmed from the data: the
+    // ONLY card conditioned on `dynasty=1` is #575 (card_key "first_card",
+    // bearer "ghost", weight "max") — the game's own tutorial/intro card.
+    // "ghost" was missing from this set entirely, so that card could never
+    // become eligible and the game silently skipped straight to a random
+    // card instead of the documented tutorial opener.
+    activeBearers: new Set(['anyone', 'general', 'priest', 'merchant', 'farmer', 'monk', 'ghost']),
     activeEffects: new Map(),
     lockedCards: new Map(),
     pendingNextCardId: null,
