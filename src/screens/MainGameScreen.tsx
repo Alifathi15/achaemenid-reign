@@ -16,7 +16,8 @@ const STAT_META: Record<StatKey, { icon: string; label: string; color: string }>
 };
 
 const DECIDE_THRESHOLD = 90;
-const FADE_DISTANCE = 140; // px of drag needed to reach full opacity on the override text
+// distance of drag needed for the in-card Yes/No label + background tint to reach full strength
+const REVEAL_DISTANCE = 100;
 
 export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   const [dragX, setDragX] = useState(0);
@@ -41,11 +42,23 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
 
   const rotation = dragX / 20;
 
-  // Reigns-style override text: fades in above the card as you drag toward
-  // that side. Right drag -> override_yes (green/olive). Left drag -> override_no (red/oxide).
-  const yesOpacity = dragX > 0 ? Math.min(1, dragX / FADE_DISTANCE) : 0;
-  const noOpacity = dragX < 0 ? Math.min(1, -dragX / FADE_DISTANCE) : 0;
-  const questionOpacity = 1 - Math.max(yesOpacity, noOpacity);
+  // Confirmed from real Reigns screenshots (Wikipedia "Reigns_Gameplay.png"):
+  // - The question text ABOVE the card stays fixed, does NOT fade or change.
+  // - While dragging right, an in-card "Yes" label fades in at the TOP-LEFT
+  //   corner of the card itself, and the card's portrait-background tint
+  //   shifts toward yellow/olive. Dragging left mirrors this with "No" / red.
+  const yesStrength = dragX > 0 ? Math.min(1, dragX / REVEAL_DISTANCE) : 0;
+  const noStrength = dragX < 0 ? Math.min(1, -dragX / REVEAL_DISTANCE) : 0;
+
+  // Blend the portrait background from its base color toward the decision tint.
+  const baseBg = 'var(--lapis)';
+  const portraitBg =
+    yesStrength > 0
+      ? `linear-gradient(var(--olive), var(--olive))`
+      : noStrength > 0
+      ? `linear-gradient(var(--oxide), var(--oxide))`
+      : baseBg;
+  const portraitOpacityOverlay = Math.max(yesStrength, noStrength);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--ivory)' }}>
@@ -68,36 +81,10 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 8px', gap: 14 }}>
-        {/* Text zone above the card: question by default, override_yes/no fade in while dragging (Reigns-style).
-            DO NOT remove this block as "unused" — it is the core Reigns-style drag feedback the user asked for. */}
-        <div style={{ position: 'relative', width: 320, minHeight: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--brown)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', fontWeight: 600,
-              opacity: questionOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.question}
-          </div>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--olive)', fontSize: 18, lineHeight: 1.5, textAlign: 'center', fontWeight: 800,
-              opacity: yesOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.overrideYes ?? ''}
-          </div>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--oxide)', fontSize: 18, lineHeight: 1.5, textAlign: 'center', fontWeight: 800,
-              opacity: noOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.overrideNo ?? ''}
-          </div>
+        {/* Question text: FIXED above the card, never fades or changes while dragging
+            (confirmed from real Reigns screenshots — do not add fade logic here). */}
+        <div style={{ color: 'var(--brown)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', maxWidth: 320, fontWeight: 600 }}>
+          {card.question}
         </div>
 
         <div
@@ -112,21 +99,29 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          {/* directional tint overlay while dragging, like Reigns' green/red card wash */}
-          <div
-            style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-              background: 'var(--olive)', opacity: yesOpacity * 0.35,
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-              background: 'var(--oxide)', opacity: noOpacity * 0.35,
-            }}
-          />
-          <div style={{ flex: 1, background: 'var(--lapis)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ivory)', fontSize: 90 }}>
-            👑
+          <div style={{ flex: 1, background: baseBg, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ivory)', fontSize: 90 }}>
+            {/* card background tint shifts to the decision color, like real Reigns */}
+            <div style={{ position: 'absolute', inset: 0, background: portraitBg, opacity: portraitOpacityOverlay }} />
+            {/* in-card Yes/No label, top-left corner, fades in with drag distance */}
+            <div
+              style={{
+                position: 'absolute', top: 16, left: 16, zIndex: 3,
+                color: 'var(--ivory)', fontSize: 22, fontWeight: 800,
+                opacity: yesStrength,
+              }}
+            >
+              {card.overrideYes ?? 'بله'}
+            </div>
+            <div
+              style={{
+                position: 'absolute', top: 16, right: 16, zIndex: 3,
+                color: 'var(--ivory)', fontSize: 22, fontWeight: 800,
+                opacity: noStrength,
+              }}
+            >
+              {card.overrideNo ?? 'خیر'}
+            </div>
+            <div style={{ position: 'relative', zIndex: 1 }}>👑</div>
           </div>
           <div style={{ background: 'var(--sandstone)', padding: '14px 16px', textAlign: 'center' }}>
             <div style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 16 }}>{card.bearer ?? ''}</div>
