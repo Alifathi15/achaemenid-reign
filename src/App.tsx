@@ -150,6 +150,8 @@ export default function App() {
         <ReignStartScreen
           dynastyIndex={state.dynasty}
           kingName={KING_NAMES[state.dynasty % KING_NAMES.length]}
+          startYear={state.year}
+          unlockedAchievements={profile?.unlockedAchievements ?? []}
           onContinue={handleReignStartContinue}
         />
       )}
