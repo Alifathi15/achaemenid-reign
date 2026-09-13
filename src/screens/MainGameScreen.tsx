@@ -15,9 +15,6 @@ const STAT_META: Record<StatKey, { icon: string; label: string; color: string }>
   treasury: { icon: 'vessel', label: 'خزانه', color: 'var(--lapis)' },
 };
 
-const DECIDE_THRESHOLD = 90;
-const FADE_DISTANCE = 140; // px of drag needed to reach full opacity on the override text
-
 export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -34,18 +31,12 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   }
   function handlePointerUp(e: React.PointerEvent) {
     setDragging(false);
-    if (dragX > DECIDE_THRESHOLD) onDecide('yes');
-    else if (dragX < -DECIDE_THRESHOLD) onDecide('no');
+    if (dragX > 90) onDecide('yes');
+    else if (dragX < -90) onDecide('no');
     setDragX(0);
   }
 
   const rotation = dragX / 20;
-
-  // Reigns-style override text: fades in above the card as you drag toward
-  // that side. Right drag -> override_yes (green/olive). Left drag -> override_no (red/oxide).
-  const yesOpacity = dragX > 0 ? Math.min(1, dragX / FADE_DISTANCE) : 0;
-  const noOpacity = dragX < 0 ? Math.min(1, -dragX / FADE_DISTANCE) : 0;
-  const questionOpacity = 1 - Math.max(yesOpacity, noOpacity);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--ivory)' }}>
@@ -68,62 +59,20 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 8px', gap: 14 }}>
-        {/* Text zone above the card: question by default, override_yes/no fade in while dragging (Reigns-style) */}
-        <div style={{ position: 'relative', width: 320, minHeight: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--brown)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', fontWeight: 600,
-              opacity: questionOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.question}
-          </div>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--olive)', fontSize: 18, lineHeight: 1.5, textAlign: 'center', fontWeight: 800,
-              opacity: yesOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.overrideYes ?? ''}
-          </div>
-          <div
-            style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--oxide)', fontSize: 18, lineHeight: 1.5, textAlign: 'center', fontWeight: 800,
-              opacity: noOpacity, transition: dragging ? 'none' : 'opacity .2s',
-            }}
-          >
-            {card.overrideNo ?? ''}
-          </div>
+        <div style={{ color: 'var(--brown)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', maxWidth: 320, fontWeight: 600 }}>
+          {card.question}
         </div>
-
         <div
           style={{
             width: 320, height: 460, borderRadius: 20, overflow: 'hidden',
             boxShadow: '0 10px 30px rgba(0,0,0,.35)', display: 'flex', flexDirection: 'column',
             transform: `translateX(${dragX}px) rotate(${rotation}deg)`,
-            transition: dragging ? 'none' : 'transform .25s',
-            touchAction: 'none', cursor: 'grab', position: 'relative',
+            touchAction: 'none', cursor: 'grab',
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
-          {/* directional tint overlay while dragging, like Reigns' green/red card wash */}
-          <div
-            style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-              background: 'var(--olive)', opacity: yesOpacity * 0.35,
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-              background: 'var(--oxide)', opacity: noOpacity * 0.35,
-            }}
-          />
           <div style={{ flex: 1, background: 'var(--lapis)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ivory)', fontSize: 90 }}>
             👑
           </div>
