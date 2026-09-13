@@ -22,6 +22,64 @@ function bearerDisplayName(bearer: string | null): string {
   return found?.persianName ?? bearer;
 }
 
+/** Card portrait image path for a bearer, or null if none should be tried
+ * (falls back to the 👑 placeholder emoji). Drop PNG/JPG/WEBP files into
+ * public/images/bearers/ named after the bearer key (">" replaced with "_",
+ * e.g. "diplomat_dark.png" for bearer "diplomat>dark") and they show up
+ * automatically — no code change needed. Exact-key file wins; if it's
+ * missing, the base key before ">" is tried (so "diplomat.png" covers both
+ * "diplomat" and "diplomat>dark" until a dedicated variant image exists).
+ * Vite's `base: './'` config means these must be resolved via BASE_URL, not
+ * a hardcoded leading slash, so the app still finds them when deployed under
+ * a sub-path. */
+function bearerImageCandidates(bearer: string | null): string[] {
+  if (!bearer || bearer === 'anyone') return [];
+  const base = import.meta.env.BASE_URL;
+  const exactFile = bearer.replace(/>/g, '_');
+  const baseKey = bearer.split('>')[0];
+  const candidates = [exactFile];
+  if (baseKey !== exactFile) candidates.push(baseKey);
+  const exts = ['png', 'jpg', 'jpeg', 'webp'];
+  const urls: string[] = [];
+  for (const name of candidates) {
+    for (const ext of exts) {
+      urls.push(`${base}images/bearers/${name}.${ext}`);
+    }
+  }
+  return urls;
+}
+
+/** Card portrait: tries each candidate image path in order (exact bearer key,
+ * then base key, across a few extensions), falling back to the 👑 emoji
+ * placeholder if none load. This is a real <img>, not a CSS background, so a
+ * missing file fails silently per-candidate via onError instead of showing a
+ * broken-image icon. */
+function CardPortrait({ bearer }: { bearer: string | null }) {
+  const candidates = React.useMemo(() => bearerImageCandidates(bearer), [bearer]);
+  const [attemptIndex, setAttemptIndex] = useState(0);
+
+  React.useEffect(() => {
+    setAttemptIndex(0);
+  }, [candidates]);
+
+  if (attemptIndex >= candidates.length) {
+    return <div style={{ position: 'relative', zIndex: 1 }}>👑</div>;
+  }
+
+  return (
+    <img
+      key={candidates[attemptIndex]}
+      src={candidates[attemptIndex]}
+      alt=""
+      onError={() => setAttemptIndex((i) => i + 1)}
+      style={{
+        position: 'relative', zIndex: 1, width: '100%', height: '100%',
+        objectFit: 'cover', objectPosition: 'center',
+      }}
+    />
+  );
+}
+
 interface MainGameScreenProps {
   card: CardRow;
   state: GameState;
@@ -141,7 +199,9 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
             >
               {card.overrideNo ?? 'خیر'}
             </div>
-            <div style={{ position: 'relative', zIndex: 1 }}>👑</div>
+            <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
+              <CardPortrait bearer={card.bearer} />
+            </div>
           </div>
           <div style={{ background: 'var(--sandstone)', padding: '14px 16px', textAlign: 'center' }}>
             <div style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 16 }}>{bearerDisplayName(card.bearer)}</div>
