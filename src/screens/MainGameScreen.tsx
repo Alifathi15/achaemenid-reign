@@ -24,6 +24,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
   const startXRef = React.useRef(0);
 
   function handlePointerDown(e: React.PointerEvent) {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setDragging(true);
     startXRef.current = e.clientX - dragX;
   }
@@ -31,7 +32,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
     if (!dragging) return;
     setDragX(e.clientX - startXRef.current);
   }
-  function handlePointerUp() {
+  function handlePointerUp(e: React.PointerEvent) {
     setDragging(false);
     if (dragX > DECIDE_THRESHOLD) onDecide('yes');
     else if (dragX < -DECIDE_THRESHOLD) onDecide('no');
