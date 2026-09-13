@@ -1,6 +1,26 @@
 import React, { useState } from 'react';
 import type { CardRow, GameState, StatKey } from '../engine/types';
 import { Icon } from '../components/Icons';
+import bearersData from '../data/bearers.json';
+
+interface BearerRow {
+  key: string;
+  role: string;
+  persianName: string;
+}
+const BEARERS = bearersData as BearerRow[];
+
+/** Resolves a card's raw bearer key (e.g. "general", "diplomat>dark") to its
+ * Persian display name from bearers.json. Variant suffixes (">dark", ">won")
+ * fall back to the base bearer's name since bearers.json only lists base
+ * roles. Unknown/empty bearer (e.g. "anyone") shows nothing rather than the
+ * raw English key. */
+function bearerDisplayName(bearer: string | null): string {
+  if (!bearer || bearer === 'anyone') return '';
+  const baseKey = bearer.split('>')[0];
+  const found = BEARERS.find((b) => b.key === bearer) ?? BEARERS.find((b) => b.key === baseKey);
+  return found?.persianName ?? bearer;
+}
 
 interface MainGameScreenProps {
   card: CardRow;
@@ -124,7 +144,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
             <div style={{ position: 'relative', zIndex: 1 }}>👑</div>
           </div>
           <div style={{ background: 'var(--sandstone)', padding: '14px 16px', textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 16 }}>{card.bearer ?? ''}</div>
+            <div style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 16 }}>{bearerDisplayName(card.bearer)}</div>
           </div>
         </div>
       </div>
