@@ -7,12 +7,16 @@ import { DeathScreen } from './screens/DeathScreen';
 import { ProgressSummaryScreen } from './screens/ProgressSummaryScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { createInitialState, selectNextCard, applyDecision, resetUnlockedObjectives } from './engine/gameEngine';
+import { createInitialState, selectNextCard, applyDecision, resetUnlockedObjectives, resolveDuelOutcome } from './engine/gameEngine';
 import type { CardRow, GameState } from './engine/types';
 import { computeCoinsEarned, ABILITY_PRICES, COIN_PACKS } from './economy/economy';
 import { getOrCreateProfile, saveProfile, recordReign, type PlayerProfile } from './db/db';
+import { DuelScreen } from './screens/DuelScreen';
+import bearersData from './data/bearers.json';
 
-type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'death' | 'progress' | 'shop' | 'settings';
+const BEARERS = bearersData as { key: string; role: string; persianName: string }[];
+
+type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'death' | 'progress' | 'shop' | 'settings';
 
 const KING_NAMES = ['داریوش', 'خشایارشا', 'کوروش', 'اردشیر', 'کمبوجیه', 'وشتاسپ'];
 
@@ -50,6 +54,10 @@ export default function App() {
   }
 
   function handleReignStartContinue() {
+    if (state.pendingDuelKey) {
+      setScreen('duel');
+      return;
+    }
     const next = selectNextCard(state);
     setCurrentCard(next);
     setScreen('game');
@@ -92,8 +100,21 @@ export default function App() {
       return;
     }
 
+    if (state.pendingDuelKey) {
+      setScreen('duel');
+      return;
+    }
+
     const next = selectNextCard(state);
     setCurrentCard(next);
+  }
+
+  function handleDuelFinished(kingWon: boolean) {
+    resolveDuelOutcome(state, kingWon);
+    setState({ ...state });
+    const next = selectNextCard(state);
+    setCurrentCard(next);
+    setScreen('game');
   }
 
   function handleDeathContinue() {
@@ -158,6 +179,17 @@ export default function App() {
 
       {screen === 'game' && currentCard && (
         <MainGameScreen card={currentCard} state={state} onDecide={handleDecide} />
+      )}
+
+      {screen === 'duel' && state.pendingDuelKey && (
+        <DuelScreen
+          kingName={KING_NAMES[state.dynasty % KING_NAMES.length]}
+          opponentKey={state.pendingDuelKey}
+          opponentLabel={
+            BEARERS.find((b) => state.pendingDuelKey?.includes(b.key))?.persianName ?? 'حریف'
+          }
+          onFinished={handleDuelFinished}
+        />
       )}
 
       {screen === 'death' && (

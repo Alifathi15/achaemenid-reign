@@ -79,6 +79,16 @@ export interface GameState {
    * disambiguated by the `duel_won` condition). */
   pendingChainCardKey: string | null;
   pendingChainConditionOverride: string | null;
+  /** Set when a chain jump target is a real duel-mechanic group (card_key
+   * starts with "_duel_", e.g. "_duel_general") rather than a plain story
+   * chain. While this is set, the UI must run the actual Duel mini-game
+   * (duelEngine.ts) instead of drawing a normal card — resolving it sets
+   * counters.duel_won and then falls through to pendingChainCardKey so the
+   * matching win/lose branch card is drawn normally. Previously this was
+   * skipped entirely: !duel_won defaulted to always-true (counter never
+   * set), so duel-conditioned cards always silently took the "lost" branch
+   * and the player never actually got to fight. */
+  pendingDuelKey: string | null;
   turnCount: number;
   coins: number;
   isDead: boolean;

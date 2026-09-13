@@ -27,6 +27,7 @@ export function createInitialState(): GameState {
     pendingNextCardId: null,
     pendingChainCardKey: null,
     pendingChainConditionOverride: null,
+    pendingDuelKey: null,
     turnCount: 0,
     coins: 0,
     isDead: false,
@@ -73,6 +74,11 @@ function pickWeighted(cards: CardRow[]): CardRow | null {
 }
 
 export function selectNextCard(state: GameState): CardRow | null {
+  // 0. a duel is pending: the UI must render the Duel mini-game, not a card.
+  //    (App.tsx checks state.pendingDuelKey before calling this, but guard
+  //    here too so selectNextCard never accidentally skips past a duel.)
+  if (state.pendingDuelKey) return null;
+
   // 1. bare '>' directive: go straight to the card at id+steps, bypassing
   //    weight/conditions entirely (Engine Spec §7 step 1, §8 worked example).
   if (state.pendingNextCardId !== null) {
@@ -138,7 +144,22 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   // chain handling
   if (customResult.chain) {
     if (customResult.chain.kind === 'jump' && customResult.chain.targetKey) {
-      state.pendingChainCardKey = customResult.chain.targetKey;
+      // A jump target starting with "_duel_" (e.g. "_duel_general") is a real
+      // Duel mini-game group, not a plain story chain (Engine Spec §8/§9
+      // "duel_won" discovery). Route it to pendingDuelKey so the UI runs the
+      // actual duel (duelEngine.ts) BEFORE drawing any card from this group —
+      // previously the engine jumped straight into pendingChainCardKey, which
+      // immediately tried to pick between the win/lose branch cards using
+      // `duel_won`/`!duel_won` conditions while duel_won had never actually
+      // been set by playing a duel, so the "lost" branch (!duel_won, true by
+      // default) was always taken silently and no fight ever happened.
+      if (customResult.chain.targetKey.startsWith('_duel_')) {
+        state.pendingDuelKey = customResult.chain.targetKey;
+        state.pendingChainCardKey = null;
+      } else {
+        state.pendingChainCardKey = customResult.chain.targetKey;
+        state.pendingDuelKey = null;
+      }
       state.pendingNextCardId = null;
     } else if (customResult.chain.kind === 'next') {
       // bare '>'/'>>'/... = go to id + (number of '>' chars), NOT "another
@@ -148,10 +169,12 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
       // among the 194 unrelated cards that all share card_key "_").
       state.pendingNextCardId = card.id + (customResult.chain.steps ?? 1);
       state.pendingChainCardKey = null;
+      state.pendingDuelKey = null;
     }
   } else {
     state.pendingChainCardKey = null;
     state.pendingNextCardId = null;
+    state.pendingDuelKey = null;
   }
 
   // lockturn bookkeeping. Three forms appear in the data:
@@ -219,6 +242,22 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
 
 export function resetUnlockedObjectives() {
   unlockedObjectiveNames.clear();
+}
+
+/** Called once a Duel mini-game finishes. Sets `duel_won` per the RE'd
+ * `DuelAct.CheckDead()` rule (Engine Spec §9: king loses -> duel_won=-1,
+ * king wins -> duel_won=1; conditions check `duel_won` as "> 0" and
+ * `!duel_won` as "<= 0"), increments nb_duelwon_keep on a win (matches the
+ * `_duel_general` chain's own `nb_duelwon_keep+` custom-token convention),
+ * then hands off to the normal chain-card group so the matching win/lose
+ * branch card (e.g. #588 vs #589) is drawn on the next selectNextCard(). */
+export function resolveDuelOutcome(state: GameState, kingWon: boolean) {
+  state.counters['duel_won'] = kingWon ? 1 : -1;
+  if (kingWon) {
+    state.counters['nb_duelwon_keep'] = (state.counters['nb_duelwon_keep'] ?? 0) + 1;
+  }
+  state.pendingChainCardKey = state.pendingDuelKey;
+  state.pendingDuelKey = null;
 }
 
 export { CARDS, OBJECTIVES };
