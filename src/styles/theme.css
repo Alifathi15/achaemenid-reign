@@ -1,0 +1,57 @@
+:root {
+  --sandstone: #C8B18A;
+  --brown: #3A2D23;
+  --gold: #C49A3A;
+  --lapis: #243B5A;
+  --olive: #596044;
+  --oxide: #8E3B2F;
+  --ivory: #E8DCC2;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Vazirmatn', Tahoma, sans-serif;
+  background: #111;
+  direction: rtl;
+}
+
+.app-shell {
+  max-width: 430px;
+  height: 100vh;
+  margin: 0 auto;
+  background: var(--sandstone);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+.btn-primary { background: var(--brown); color: var(--ivory); }
+.btn-secondary { background: transparent; color: var(--brown); border: 2px solid var(--brown); }
+
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--brown); color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid rgba(196,154,58,.5);
+  cursor: pointer;
+}
+.icon-btn svg { width: 20px; height: 20px; }

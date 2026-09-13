@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Achaemenid Reign — UI Preview</title>
+<style>
+  @font-face {
+    font-family: 'Vazirmatn';
+    src: local('Vazirmatn');
+  }
+  :root{
+    --sandstone:#C8B18A;
+    --brown:#3A2D23;
+    --gold:#C49A3A;
+    --lapis:#243B5A;
+    --olive:#596044;
+    --oxide:#8E3B2F;
+    --ivory:#E8DCC2;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Vazirmatn', Tahoma, sans-serif;
+    background:#111;
+    margin:0;
+    padding:40px;
+    display:flex;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .phone{
+    width:390px;
+    height:844px;
+    background:var(--sandstone);
+    border-radius:36px;
+    overflow:hidden;
+    position:relative;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    display:flex;
+    flex-direction:column;
+  }
+  .label{
+    color:#fff;
+    font-size:13px;
+    margin-bottom:8px;
+    text-align:center;
+    opacity:.7;
+  }
+  .col{display:flex; flex-direction:column; align-items:center;}
+
+  /* ===== HOME ===== */
+  .home{padding:24px 20px; justify-content:space-between; height:100%;}
+  .topbar{display:flex; justify-content:space-between; align-items:center;}
+  .topbar .title{color:var(--ivory); font-weight:700; font-size:18px;}
+  .gear{width:40px;height:40px;border-radius:50%;background:var(--brown);display:flex;align-items:center;justify-content:center;color:var(--gold);border:1.5px solid rgba(196,154,58,.5);}
+  .gear svg{width:20px;height:20px;}
+  .logo-box{
+    width:200px;height:200px;margin:auto;border-radius:16px;
+    background:linear-gradient(160deg, var(--lapis), var(--brown));
+    display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--gold);
+    color:var(--ivory); text-align:center; font-weight:700; font-size:22px; padding:12px;
+  }
+  .btn{
+    width:100%; padding:16px; border-radius:12px; text-align:center;
+    font-weight:600; font-size:16px; margin-bottom:12px; cursor:pointer;
+  }
+  .btn-primary{background:var(--brown); color:var(--ivory);}
+  .btn-secondary{background:transparent; color:var(--brown); border:2px solid var(--brown);}
+
+  /* ===== MAIN GAME ===== */
+  .game{padding:0; height:100%; display:flex; flex-direction:column; background:var(--ivory);}
+  .stats-bar{
+    display:flex; justify-content:space-around; padding:16px 12px 8px;
+    background:var(--brown);
+  }
+  .stat{display:flex; flex-direction:column; align-items:center; gap:4px; width:70px;}
+  .stat-icon{width:32px;height:32px;border-radius:50%; display:flex;align-items:center;justify-content:center;}
+  .stat-icon svg{width:17px;height:17px;}
+  .stat-bar-track{width:60px;height:6px;background:rgba(255,255,255,.2);border-radius:3px; overflow:hidden;}
+  .stat-bar-fill{height:100%; border-radius:3px;}
+  .stat-label{color:var(--ivory); font-size:10px;}
+  .card-area{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px 20px 8px; position:relative; gap:14px;}
+  .card-question{
+    color:var(--brown); font-size:15px; line-height:1.7; text-align:center;
+    max-width:320px; font-weight:600;
+  }
+  .card-wrap{position:relative; width:320px; height:460px; display:flex; align-items:center; justify-content:center;}
+  .card{
+    width:320px; height:460px; border-radius:20px; overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+    display:flex; flex-direction:column; position:relative;
+  }
+  .card-portrait{flex:1; background:var(--lapis); display:flex; align-items:center; justify-content:center; color:var(--ivory); font-size:110px;}
+  .card-name-bar{
+    background:var(--sandstone); padding:14px 16px; text-align:center;
+  }
+  .card-name{font-weight:700; color:var(--brown); font-size:16px;}
+  .swipe-hint{position:absolute; top:50%; transform:translateY(-50%); font-size:36px; opacity:.55; z-index:5;}
+  .swipe-left{left:-6px; color:var(--oxide);}
+  .swipe-right{right:-6px; color:var(--olive);}
+  .bottom-bar{
+    background:var(--brown); padding:14px 20px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .bottom-left{display:flex; align-items:center; gap:12px;}
+  .year-badge{color:var(--gold); font-size:14px; font-weight:700; white-space:nowrap;}
+  .achievements-row{display:flex; gap:6px;}
+  .ach-dot{width:20px;height:20px;border-radius:50%; display:flex; align-items:center; justify-content:center;}
+  .ach-dot svg{width:11px;height:11px;}
+  .ach-open{background:var(--gold); color:var(--brown);}
+  .ach-locked{background:#665947; color:rgba(232,220,194,.5);}
+
+  /* ===== DEATH ===== */
+  .death{padding:40px 24px; height:100%; background:var(--brown); color:var(--ivory); text-align:center; display:flex; flex-direction:column; justify-content:center; gap:20px;}
+  .death-icon{font-size:64px;}
+  .death-title{font-size:22px; font-weight:700; color:var(--oxide);}
+  .death-story{font-size:15px; line-height:1.8; opacity:.9;}
+  .death-age{font-size:14px; color:var(--gold);}
+
+  /* ===== PROGRESS SUMMARY ===== */
+  .progress{padding:32px 20px; height:100%; background:var(--ivory); display:flex; flex-direction:column; gap:16px;}
+  .progress-title{color:var(--brown); font-size:20px; font-weight:700; text-align:center; margin-bottom:8px;}
+  .progress-card{background:#fff; border-radius:14px; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .progress-card .lbl{color:var(--brown); font-size:14px;}
+  .progress-card .val{color:var(--lapis); font-weight:700; font-size:16px;}
+
+  /* ===== SETTINGS ===== */
+  .settings{padding:32px 20px; height:100%; background:var(--ivory); display:flex; flex-direction:column; gap:16px;}
+  .settings-title{color:var(--brown); font-size:20px; font-weight:700; text-align:center; margin-bottom:8px;}
+  .settings-row{background:#fff; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center;}
+  .settings-row .lbl{color:var(--brown); font-size:15px;}
+  .toggle{width:44px;height:24px;border-radius:12px;background:var(--olive); position:relative;}
+  .toggle::after{content:'';width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;right:3px;}
+
+  /* ===== REIGN START ===== */
+  .reign-start{padding:0; height:100%; background:var(--brown); display:flex; flex-direction:column;}
+  .rs-topbar{display:flex; justify-content:center; gap:36px; padding:20px 0 8px;}
+  .rs-icon{width:32px;height:32px; color:var(--gold); display:flex; align-items:center; justify-content:center; border-radius:50%; border:1.5px solid rgba(196,154,58,.4);}
+  .rs-icon svg{width:17px;height:17px;}
+  .rs-timeline-area{padding:20px 20px 8px; display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .rs-year{color:var(--gold); font-size:34px; font-weight:800; letter-spacing:1px;}
+  .rs-timeline{
+    width:100%; display:flex; align-items:center; position:relative; height:40px; margin-top:4px;
+  }
+  .rs-tick{flex:1; height:3px; background:var(--sandstone); opacity:.35; margin:0 2px; border-radius:2px;}
+  .rs-tick.active{opacity:1; background:var(--oxide);}
+  .rs-avatar-current{
+    position:absolute; width:44px; height:44px; border-radius:8px; background:var(--lapis);
+    display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--ivory);
+    border:2px solid var(--gold); left:50%; transform:translateX(-50%); top:-2px;
+  }
+  .rs-avatars-future{display:flex; gap:10px; opacity:.4;}
+  .rs-avatar-mini{width:30px;height:30px;border-radius:6px; background:var(--sandstone); display:flex; align-items:center; justify-content:center; font-size:15px;}
+  .rs-name{color:var(--ivory); text-align:center; margin-top:18px;}
+  .rs-name .big{font-size:20px; font-weight:800;}
+  .rs-name .small{font-size:13px; opacity:.75; margin-top:2px;}
+  .rs-divider{height:1px; background:rgba(232,220,194,.15); margin:20px 20px 0;}
+  .rs-goals{padding:20px 24px; display:flex; flex-direction:column; gap:14px; flex:1;}
+  .rs-goal{display:flex; align-items:center; gap:12px;}
+  .rs-check{
+    width:22px;height:22px;border-radius:5px; border:2px solid var(--sandstone); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--olive);
+  }
+  .rs-check.done{background:var(--olive); border-color:var(--olive); color:var(--ivory);}
+  .rs-goal-text{color:var(--ivory); font-size:14px;}
+  .rs-goal.done .rs-goal-text{opacity:.6; text-decoration:line-through;}
+  .rs-next{
+    align-self:flex-end; margin:0 20px 24px auto; width:40px;height:40px;border-radius:50%;
+    background:var(--gold); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--brown);
+  }
+
+  /* ===== SHOP ===== */
+  .shop{padding:0; height:100%; background:var(--ivory); display:flex; flex-direction:column;}
+  .shop-header{
+    background:var(--brown); padding:20px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .shop-back{color:var(--ivory); font-size:20px;}
+  .shop-title{color:var(--ivory); font-size:17px; font-weight:700;}
+  .shop-coins{
+    display:flex; align-items:center; gap:6px; background:rgba(196,154,58,.15);
+    padding:6px 12px; border-radius:20px;
+  }
+  .shop-coins .icon{color:var(--gold); display:flex; align-items:center;}
+  .shop-coins .icon svg{width:16px;height:16px;}
+  .shop-coins .val{color:var(--gold); font-weight:700; font-size:14px;}
+  .shop-body{flex:1; overflow-y:auto; padding:18px 16px 24px; display:flex; flex-direction:column; gap:22px;}
+  .shop-section-title{color:var(--brown); font-size:14px; font-weight:700; opacity:.7; margin-bottom:2px;}
+  .ability-row{display:flex; gap:10px;}
+  .ability-card{
+    flex:1; background:#fff; border-radius:14px; padding:14px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+  }
+  .ability-icon{width:44px;height:44px;border-radius:50%; display:flex;align-items:center;justify-content:center; color:var(--ivory);}
+  .ability-icon svg{width:22px;height:22px;}
+  .ability-name{color:var(--brown); font-size:13px; font-weight:700; text-align:center;}
+  .ability-price-btn{
+    width:100%; background:var(--lapis); color:var(--ivory); border-radius:8px; padding:8px 0;
+    text-align:center; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:5px;
+  }
+  .pack-list{display:flex; flex-direction:column; gap:10px;}
+  .pack-row{
+    background:#fff; border-radius:14px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.06); position:relative; overflow:hidden;
+  }
+  .pack-row.best::before{
+    content:'پرفروش‌ترین'; position:absolute; top:0; left:0; background:var(--oxide); color:#fff;
+    font-size:10px; padding:3px 10px; border-bottom-right-radius:8px;
+  }
+  .pack-left{display:flex; align-items:center; gap:12px;}
+  .pack-coin-icon{width:40px;height:40px;border-radius:50%; background:var(--gold); display:flex; align-items:center; justify-content:center; color:var(--brown);}
+  .pack-coin-icon svg{width:20px;height:20px;}
+  .pack-info .amt{color:var(--brown); font-weight:700; font-size:15px;}
+  .pack-info .lbl2{color:var(--brown); font-size:11px; opacity:.6;}
+  .pack-buy{background:var(--brown); color:var(--ivory); font-size:13px; font-weight:700; padding:8px 16px; border-radius:8px; white-space:nowrap;}
+
+  /* ===== ACHIEVEMENTS ARCHIVE ===== */
+  .arch{padding:0; height:100%; background:var(--ivory); display:flex; flex-direction:column;}
+  .arch-header{
+    background:var(--brown); padding:20px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .arch-back{color:var(--ivory); font-size:20px;}
+  .arch-title{color:var(--ivory); font-size:17px; font-weight:700;}
+  .arch-count{color:var(--gold); font-size:13px; font-weight:700;}
+  .arch-body{flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px;}
+  .arch-cat{color:var(--brown); font-size:13px; font-weight:700; opacity:.6; margin:8px 4px 0;}
+  .arch-item{
+    background:#fff; border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.05);
+  }
+  .arch-item.locked{opacity:.55;}
+  .arch-badge{
+    width:40px; height:40px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:var(--gold); color:var(--brown);
+  }
+  .arch-item.locked .arch-badge{background:#c9c1ac; color:#8a8271;}
+  .arch-badge svg{width:20px;height:20px;}
+  .arch-text .name{color:var(--brown); font-size:13.5px; font-weight:700;}
+  .arch-text .desc{color:var(--brown); font-size:11.5px; opacity:.65; margin-top:2px;}
+
+  /* ===== ACHIEVEMENT UNLOCK POPUP (overlay on game screen) ===== */
+  .popup-overlay{
+    position:absolute; inset:0; background:rgba(38,31,20,.72); display:flex; align-items:center; justify-content:center; z-index:20;
+  }
+  .popup-card{
+    width:280px; background:var(--sandstone); border-radius:18px; padding:28px 22px; text-align:center;
+    border:2px solid var(--gold); box-shadow:0 12px 30px rgba(0,0,0,.4);
+  }
+  .popup-badge{
+    width:64px; height:64px; border-radius:50%; margin:0 auto 14px; background:var(--gold);
+    display:flex; align-items:center; justify-content:center; color:var(--brown);
+    box-shadow:0 0 0 6px rgba(196,154,58,.25);
+  }
+  .popup-badge svg{width:32px;height:32px;}
+  .popup-kicker{color:var(--brown); font-size:12px; opacity:.7; font-weight:700; letter-spacing:.5px;}
+  .popup-title{color:var(--brown); font-size:17px; font-weight:800; margin:6px 0 4px;}
+  .popup-desc{color:var(--brown); font-size:12.5px; opacity:.75; margin-bottom:18px;}
+  .popup-dismiss{
+    background:var(--brown); color:var(--ivory); font-size:14px; font-weight:700; padding:10px 0; border-radius:10px;
+  }
+
+  /* ===== DUEL MINI-GAME ===== */
+  .duel{padding:0; height:100%; background:var(--lapis); display:flex; flex-direction:column;}
+  .duel-topbar{padding:16px 20px 4px; display:flex; justify-content:space-between; align-items:center;}
+  .duel-title{color:var(--ivory); font-size:14px; font-weight:700; opacity:.85;}
+  .duel-hp{display:flex; gap:4px;}
+  .hp-pip{width:12px;height:12px;border-radius:50%;background:var(--oxide);}
+  .hp-pip.lost{background:rgba(255,255,255,.15);}
+  .duel-arena{flex:1; display:flex; align-items:center; justify-content:center; position:relative; padding:10px 24px;}
+  .duel-track{width:100%; height:6px; background:rgba(232,220,194,.2); border-radius:3px; position:relative;}
+  .duel-fighter{
+    position:absolute; top:50%; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; font-size:26px; border:2px solid var(--gold);
+  }
+  .fighter-king{background:var(--brown); color:var(--ivory);}
+  .fighter-oppo{background:var(--oxide); color:var(--ivory);}
+  .duel-vs-text{position:absolute; top:-30px; left:50%; transform:translateX(-50%); color:var(--gold); font-size:12px; font-weight:700;}
+  .duel-moves{display:flex; gap:10px; padding:20px 20px 26px; justify-content:center;}
+  .move-btn{
+    flex:1; max-width:96px; background:rgba(232,220,194,.1); border:1.5px solid rgba(196,154,58,.4); border-radius:14px;
+    padding:14px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--ivory);
+  }
+  .move-btn svg{width:26px;height:26px; color:var(--gold);}
+  .move-btn .mv-lbl{font-size:11px; font-weight:700;}
+
+  /* ===== DUNGEON MINI-GAME ===== */
+  .dungeon{padding:0; height:100%; background:var(--brown); display:flex; flex-direction:column; position:relative;}
+  .dg-bg-placeholder{
+    position:absolute; inset:0; z-index:0;
+    background:repeating-linear-gradient(45deg, rgba(232,220,194,.05) 0 10px, transparent 10px 20px);
+    border:2px dashed rgba(196,154,58,.4);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dg-bg-placeholder .txt{color:var(--gold); font-size:12px; opacity:.6; text-align:center; padding:0 20px;}
+  .dg-topbar{padding:16px 20px 4px; text-align:center; position:relative; z-index:1;}
+  .dg-title{color:var(--gold); font-size:14px; font-weight:700;}
+  .dg-path{flex:1; display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start; gap:14px; padding:16px 20px; position:relative; z-index:1;}
+  .dg-step{
+    width:70%; padding:12px; border-radius:12px; background:rgba(58,45,35,.55); backdrop-filter:blur(2px); border:1px solid rgba(196,154,58,.35);
+    display:flex; align-items:center; gap:10px;
+  }
+  .dg-step.current{background:rgba(196,154,58,.25); border-color:var(--gold);}
+  .dg-step.done{opacity:.5;}
+  .dg-step-icon{width:30px;height:30px;border-radius:50%; background:var(--lapis); display:flex; align-items:center; justify-content:center; color:var(--ivory); flex-shrink:0;}
+  .dg-step-icon svg{width:16px;height:16px;}
+  .dg-step-text{color:var(--ivory); font-size:12px;}
+  .dg-prompt{background:var(--sandstone); padding:22px 20px; text-align:center; position:relative; z-index:1;}
+  .dg-prompt-text{color:var(--brown); font-size:14px; font-weight:600; margin-bottom:14px; line-height:1.6;}
+  .dg-choices{display:flex; gap:10px;}
+  .dg-choice{flex:1; padding:12px; border-radius:10px; text-align:center; font-size:13px; font-weight:700;}
+  .dg-choice.go{background:var(--olive); color:var(--ivory);}
+  .dg-choice.flee{background:transparent; border:2px solid var(--brown); color:var(--brown);}
+
+  /* ===== BACKGAMMON MINI-GAME ===== */
+  .backg{padding:0; height:100%; background:var(--ivory); display:flex; flex-direction:column;}
+  .bg-topbar{background:var(--brown); padding:16px 20px; display:flex; justify-content:space-between; align-items:center;}
+  .bg-title{color:var(--ivory); font-size:14px; font-weight:700;}
+  .bg-dice{display:flex; gap:6px;}
+  .die{width:26px;height:26px;border-radius:6px; background:var(--gold); color:var(--brown); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;}
+  .bg-board{
+    flex:1; margin:16px; border-radius:14px; background:var(--sandstone); position:relative; overflow:hidden;
+    display:flex; padding:14px 10px;
+  }
+  .bg-half{flex:1; display:flex; justify-content:space-around;}
+  .bg-point{width:22px; display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .bg-point.top{justify-content:flex-start;}
+  .bg-point.bot{justify-content:flex-end;}
+  .bg-checker{width:20px;height:20px;border-radius:50%;}
+  .chk-king{background:var(--lapis); border:2px solid var(--gold);}
+  .chk-oppo{background:var(--oxide); border:2px solid var(--brown);}
+  .bg-mid-bar{width:6px; background:var(--brown); border-radius:3px; margin:0 6px;}
+  .bg-footer{padding:16px 20px; text-align:center;}
+  .bg-hint{color:var(--brown); font-size:12.5px; opacity:.75;}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="ic-flame" viewBox="0 0 24 24"><path d="M12 3c1 3-2 4-2 7a3 3 0 006 0c0-1-.5-2-1-2.5 1.5.5 3 2.5 3 5a6 6 0 01-12 0c0-4 3-5 3-8 0-.7.2-1.3 0-1.5.4-.2 2.6-1 3-0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-sword" viewBox="0 0 24 24"><path d="M4 20L15 9M17 3l4 4-3 3-4-4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 10.5l3 3M4 20l2-1 1-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="9" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 19c0-3 2.2-5 5-5s5 2 5 5M14.5 19c0-2.3 1.4-4 3.5-4s3.5 1.7 3.5 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-vessel" viewBox="0 0 24 24"><path d="M8 4h8l-1 4h-6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 8h10l1.4 8.6A3 3 0 0115.4 20H8.6a3 3 0 01-3-3.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="ic-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-9.3-9C1.2 7.8 3 4.3 6.6 4c2-.2 3.8 1 5.4 2.8C13.6 5 15.4 3.8 17.4 4c3.6.3 5.4 3.8 3.9 7-2.3 4.6-9.3 9-9.3 9z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-undo" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.6 5.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 7v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" stroke-width="1" opacity=".6"/><path d="M12 8.4v7.2M9.6 10h4.8M9.6 14h4.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></symbol>
+    <symbol id="ic-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.9L21 9.6l-4.7 4.2L17.6 21 12 17.6 6.4 21l1.3-7.2L3 9.6l6.4-.7z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5.5" y="10.5" width="13" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="ic-scroll" viewBox="0 0 24 24"><path d="M6 4h11a2 2 0 012 2v13a2 2 0 01-2-2H8a2 2 0 00-2 2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 4a2 2 0 00-2 2v11a2 2 0 002 2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 9h7M9 12.5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.02 5.98l-1.7 1.7M7.68 16.32l-1.7 1.7M18.02 18.02l-1.7-1.7M7.68 7.68l-1.7-1.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-temple" viewBox="0 0 24 24"><path d="M4 21V10l8-5 8 5v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 10h16M8 21v-6h8v6M12 5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-crown" viewBox="0 0 24 24"><path d="M4 9l3.5 3L12 6l4.5 6L20 9l-1.5 9H5.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-spear" viewBox="0 0 24 24"><path d="M20 4l-13 13M20 4l-3 1 2 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><path d="M4 20l3-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-torch" viewBox="0 0 24 24"><path d="M12 22V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h8l-1-3H9z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2c1 1.5-1 2-1 3.5a1.5 1.5 0 003 0c0-.5-.2-1-.5-1.3 1 .3 1.5 1.3 1.5 2.3a2.5 2.5 0 01-5 0c0-2 2-2.5 2-4.5z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-skull" viewBox="0 0 24 24"><path d="M12 3a7 7 0 00-7 7v3l1.5 2v2h3v-2h5v2h3v-2l1.5-2v-3a7 7 0 00-7-7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="9.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="11" r="1.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-chest" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 10a8 5 0 0116 0" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 13h16M12 13v6" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="ic-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="col">
+  <div class="label">۱ - صفحه‌ی خانه (Home)</div>
+  <div class="phone">
+    <div class="home">
+      <div class="topbar">
+        <div class="gear">
+          <svg viewBox="0 0 24 24"><use href="#ic-gear"/></svg>
+        </div>
+        <div class="title">شاه شو</div>
+        <div class="gear" title="تاریخچه دودمان">
+          <svg viewBox="0 0 24 24"><use href="#ic-temple"/></svg>
+        </div>
+      </div>
+      <div class="logo-box">شاه شو</div>
+      <div>
+        <div class="btn btn-primary">شروع / ادامه</div>
+        <div class="btn btn-secondary">فروشگاه</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۲ - فروشگاه (Shop)</div>
+  <div class="phone">
+    <div class="shop">
+      <div class="shop-header">
+        <div class="shop-back">←</div>
+        <div class="shop-title">فروشگاه</div>
+        <div class="shop-coins">
+          <span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-coin"/></svg></span>
+          <span class="val">۴۲۰</span>
+        </div>
+      </div>
+      <div class="shop-body">
+        <div>
+          <div class="shop-section-title">قابلیت‌ها</div>
+          <div class="ability-row">
+            <div class="ability-card">
+              <div class="ability-icon" style="background:var(--oxide);"><svg viewBox="0 0 24 24"><use href="#ic-heart"/></svg></div>
+              <div class="ability-name">جانِ اضافه</div>
+              <div class="ability-price-btn"><svg viewBox="0 0 24 24" width="14" height="14"><use href="#ic-coin"/></svg><span>۳۵۰</span></div>
+            </div>
+            <div class="ability-card">
+              <div class="ability-icon" style="background:var(--lapis);"><svg viewBox="0 0 24 24"><use href="#ic-undo"/></svg></div>
+              <div class="ability-name">برگردوندنِ کارت</div>
+              <div class="ability-price-btn"><svg viewBox="0 0 24 24" width="14" height="14"><use href="#ic-coin"/></svg><span>۱۰۰</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="shop-section-title">خریدِ سکه</div>
+          <div class="pack-list">
+            <div class="pack-row">
+              <div class="pack-left">
+                <div class="pack-coin-icon"><svg viewBox="0 0 24 24"><use href="#ic-coin"/></svg></div>
+                <div class="pack-info">
+                  <div class="amt">۲,۰۰۰ سکه</div>
+                  <div class="lbl2">پکِ پایه</div>
+                </div>
+              </div>
+              <div class="pack-buy">۹۹,۰۰۰ ت</div>
+            </div>
+            <div class="pack-row best">
+              <div class="pack-left">
+                <div class="pack-coin-icon"><svg viewBox="0 0 24 24"><use href="#ic-coin"/></svg></div>
+                <div class="pack-info">
+                  <div class="amt">۳,۷۵۰ سکه</div>
+                  <div class="lbl2">پکِ متوسط</div>
+                </div>
+              </div>
+              <div class="pack-buy">۱۷۹,۰۰۰ ت</div>
+            </div>
+            <div class="pack-row">
+              <div class="pack-left">
+                <div class="pack-coin-icon"><svg viewBox="0 0 24 24"><use href="#ic-coin"/></svg></div>
+                <div class="pack-info">
+                  <div class="amt">۵,۵۰۰ سکه</div>
+                  <div class="lbl2">پکِ بزرگ</div>
+                </div>
+              </div>
+              <div class="pack-buy">۲۴۹,۰۰۰ ت</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۳ - شروعِ سلطنت (Reign Start)</div>
+  <div class="phone">
+    <div class="reign-start">
+      <div class="rs-topbar">
+        <div class="rs-icon"><svg viewBox="0 0 24 24"><use href="#ic-crown"/></svg></div>
+        <div class="rs-icon"><svg viewBox="0 0 24 24"><use href="#ic-scroll"/></svg></div>
+        <div class="rs-icon"><svg viewBox="0 0 24 24"><use href="#ic-gear"/></svg></div>
+      </div>
+      <div class="rs-timeline-area">
+        <div class="rs-year">۵۲۴</div>
+        <div class="rs-timeline">
+          <div class="rs-tick"></div><div class="rs-tick"></div><div class="rs-tick"></div>
+          <div class="rs-tick active"></div><div class="rs-tick active"></div>
+          <div class="rs-avatar-current">👑</div>
+          <div class="rs-tick"></div><div class="rs-tick"></div><div class="rs-tick"></div><div class="rs-tick"></div>
+        </div>
+        <div class="rs-avatars-future">
+          <div class="rs-avatar-mini">🏹</div>
+          <div class="rs-avatar-mini">🛕</div>
+          <div class="rs-avatar-mini">🏯</div>
+          <div class="rs-avatar-mini">⚔</div>
+        </div>
+        <div class="rs-name">
+          <div class="big">داریوش شاه‌سالار</div>
+          <div class="small">سومین شاه دودمان</div>
+        </div>
+      </div>
+      <div class="rs-divider"></div>
+      <div class="rs-goals">
+        <div class="rs-goal done">
+          <div class="rs-check done">✓</div>
+          <div class="rs-goal-text">در یک دوئل پیروز شو</div>
+        </div>
+        <div class="rs-goal">
+          <div class="rs-check"></div>
+          <div class="rs-goal-text">مانند یک فاتح حکومت کن</div>
+        </div>
+        <div class="rs-goal">
+          <div class="rs-check"></div>
+          <div class="rs-goal-text">با یک شیء ناشناخته صحبت کن</div>
+        </div>
+      </div>
+      <div class="rs-next">›</div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۴ - آرشیوِ دستاوردها (Achievements Archive)</div>
+  <div class="phone">
+    <div class="arch">
+      <div class="arch-header">
+        <div class="arch-back">←</div>
+        <div class="arch-title">دستاوردها</div>
+        <div class="arch-count">۱۲ / ۴۰</div>
+      </div>
+      <div class="arch-body">
+        <div class="arch-cat">دوئل و جنگ</div>
+        <div class="arch-item">
+          <div class="arch-badge"><svg viewBox="0 0 24 24"><use href="#ic-sword"/></svg></div>
+          <div class="arch-text">
+            <div class="name">در یک دوئل پیروز شو</div>
+            <div class="desc">در نبردِ تن‌به‌تن حریف را شکست بده</div>
+          </div>
+        </div>
+        <div class="arch-item locked">
+          <div class="arch-badge"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+          <div class="arch-text">
+            <div class="name">؟؟؟</div>
+            <div class="desc">هنوز کشف نشده</div>
+          </div>
+        </div>
+        <div class="arch-cat">حکمرانی</div>
+        <div class="arch-item">
+          <div class="arch-badge"><svg viewBox="0 0 24 24"><use href="#ic-crown"/></svg></div>
+          <div class="arch-text">
+            <div class="name">۵۰ سال حکمرانی کن</div>
+            <div class="desc">در یک سلطنت به سن ۶۸ سالگی برس</div>
+          </div>
+        </div>
+        <div class="arch-item locked">
+          <div class="arch-badge"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+          <div class="arch-text">
+            <div class="name">؟؟؟</div>
+            <div class="desc">هنوز کشف نشده</div>
+          </div>
+        </div>
+        <div class="arch-cat">اقتصاد</div>
+        <div class="arch-item locked">
+          <div class="arch-badge"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+          <div class="arch-text">
+            <div class="name">؟؟؟</div>
+            <div class="desc">هنوز کشف نشده</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۵ - پاپ‌آپِ لحظه‌ایِ دستاورد (حینِ بازی)</div>
+  <div class="phone">
+    <div class="game" style="position:relative;">
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--gold);"><svg viewBox="0 0 24 24"><use href="#ic-flame"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:65%;background:var(--gold);"></div></div>
+          <div class="stat-label">آتشکده</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--oxide);"><svg viewBox="0 0 24 24"><use href="#ic-sword"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:40%;background:var(--oxide);"></div></div>
+          <div class="stat-label">ارتش</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--olive);"><svg viewBox="0 0 24 24"><use href="#ic-people"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:55%;background:var(--olive);"></div></div>
+          <div class="stat-label">مردم</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--lapis);"><svg viewBox="0 0 24 24"><use href="#ic-vessel"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:30%;background:var(--lapis);"></div></div>
+          <div class="stat-label">خزانه</div>
+        </div>
+      </div>
+      <div class="card-area">
+        <div class="card-question">جنگ‌سالار شاکی است که دعاهای پیشوا، وقت شمشیرزنی سربازها را گرفته است.</div>
+        <div class="card-wrap">
+          <div class="card">
+            <div class="card-portrait">👑</div>
+            <div class="card-name-bar">
+              <div class="card-name">انوشیروان جنگ‌سالار</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <div class="bottom-left">
+          <div class="year-badge">۲۸ سال در قدرت</div>
+          <div class="achievements-row">
+            <div class="ach-dot ach-open"><svg viewBox="0 0 24 24"><use href="#ic-star"/></svg></div>
+            <div class="ach-dot ach-open"><svg viewBox="0 0 24 24"><use href="#ic-star"/></svg></div>
+            <div class="ach-dot ach-locked"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+            <div class="ach-dot ach-locked"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="popup-overlay">
+        <div class="popup-card">
+          <div class="popup-badge"><svg viewBox="0 0 24 24"><use href="#ic-sword"/></svg></div>
+          <div class="popup-kicker">دستاوردِ تازه باز شد</div>
+          <div class="popup-title">در یک دوئل پیروز شو</div>
+          <div class="popup-desc">در نبردِ تن‌به‌تن، حریف خود را شکست دادی و افتخارِ نبرد را از آنِ خود کردی.</div>
+          <div class="popup-dismiss">ادامه</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۶ - صفحه‌ی اصلی بازی (Main Game)</div>
+  <div class="phone">
+    <div class="game">
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--gold);"><svg viewBox="0 0 24 24"><use href="#ic-flame"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:65%;background:var(--gold);"></div></div>
+          <div class="stat-label">آتشکده</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--oxide);"><svg viewBox="0 0 24 24"><use href="#ic-sword"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:40%;background:var(--oxide);"></div></div>
+          <div class="stat-label">ارتش</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--olive);"><svg viewBox="0 0 24 24"><use href="#ic-people"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:55%;background:var(--olive);"></div></div>
+          <div class="stat-label">مردم</div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon" style="background:var(--lapis);"><svg viewBox="0 0 24 24"><use href="#ic-vessel"/></svg></div>
+          <div class="stat-bar-track"><div class="stat-bar-fill" style="width:30%;background:var(--lapis);"></div></div>
+          <div class="stat-label">خزانه</div>
+        </div>
+      </div>
+      <div class="card-area">
+        <div class="card-question">جنگ‌سالار شاکی است که دعاهای پیشوا، وقت شمشیرزنی سربازها را گرفته است.</div>
+        <div class="card-wrap">
+          <div class="card">
+            <div class="card-portrait">👑</div>
+            <div class="card-name-bar">
+              <div class="card-name">انوشیروان جنگ‌سالار</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <div class="bottom-left">
+          <div class="year-badge">۲۸ سال در قدرت</div>
+          <div class="achievements-row">
+            <div class="ach-dot ach-open"><svg viewBox="0 0 24 24"><use href="#ic-star"/></svg></div>
+            <div class="ach-dot ach-open"><svg viewBox="0 0 24 24"><use href="#ic-star"/></svg></div>
+            <div class="ach-dot ach-locked"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+            <div class="ach-dot ach-locked"><svg viewBox="0 0 24 24"><use href="#ic-lock"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۷ - صفحه‌ی مرگ (Death)</div>
+  <div class="phone">
+    <div class="death">
+      <div class="death-icon">☠</div>
+      <div class="death-title">پایان یک سلطنت</div>
+      <div class="death-story">خزانه خالی شد و بازرگانان علیه تخت شوریدند. سپاه، فرمانروا را رها کرد و او در تنهایی جان باخت.</div>
+      <div class="death-age">۲۸ سال حکمرانی کرد</div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۸ - خلاصه‌ی پیشرفت (Progress Summary)</div>
+  <div class="phone">
+    <div class="progress">
+      <div class="progress-title">خلاصه‌ی سلطنت</div>
+      <div class="progress-card"><span class="lbl">سال‌های حکمرانی</span><span class="val">۲۸</span></div>
+      <div class="progress-card"><span class="lbl">تصمیمات گرفته‌شده</span><span class="val">۱۴۲</span></div>
+      <div class="progress-card"><span class="lbl">سکه‌های کسب‌شده</span><span class="val">۱۶۸</span></div>
+      <div class="progress-card"><span class="lbl">دستاوردهای جدید</span><span class="val">۲</span></div>
+      <div class="btn btn-primary" style="margin-top:auto;">ادامه</div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۹ - تنظیمات (Settings)</div>
+  <div class="phone">
+    <div class="settings">
+      <div class="settings-title">تنظیمات</div>
+      <div class="settings-row"><span class="lbl">موسیقی</span><div class="toggle"></div></div>
+      <div class="settings-row"><span class="lbl">افکت‌های صوتی</span><div class="toggle"></div></div>
+      <div class="settings-row"><span class="lbl">زبان</span><span class="val">فارسی</span></div>
+      <div class="settings-row"><span class="lbl">درباره‌ی بازی</span><span>›</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۱۰ - مینی‌گیمِ دوئل (Duel)</div>
+  <div class="phone">
+    <div class="duel">
+      <div class="duel-topbar">
+        <div class="duel-title">داریوش شاه‌سالار</div>
+        <div class="duel-hp">
+          <div class="hp-pip"></div><div class="hp-pip"></div><div class="hp-pip"></div><div class="hp-pip lost"></div><div class="hp-pip lost"></div>
+        </div>
+      </div>
+      <div class="duel-arena">
+        <div class="duel-track">
+          <div class="duel-vs-text">دوئل با یاغیِ ساتراپ</div>
+          <div class="duel-fighter fighter-king" style="left:30%;">👑</div>
+          <div class="duel-fighter fighter-oppo" style="left:70%;">⚔</div>
+        </div>
+      </div>
+      <div class="duel-moves">
+        <div class="move-btn">
+          <svg viewBox="0 0 24 24"><use href="#ic-sword"/></svg>
+          <div class="mv-lbl">حمله</div>
+        </div>
+        <div class="move-btn">
+          <svg viewBox="0 0 24 24"><use href="#ic-shield"/></svg>
+          <div class="mv-lbl">دفاع</div>
+        </div>
+        <div class="move-btn">
+          <svg viewBox="0 0 24 24"><use href="#ic-spear"/></svg>
+          <div class="mv-lbl">فینت</div>
+        </div>
+      </div>
+      <div class="duel-hp" style="justify-content:flex-end; padding:0 20px 16px;">
+        <div class="hp-pip"></div><div class="hp-pip"></div><div class="hp-pip"></div><div class="hp-pip"></div><div class="hp-pip"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۱۱ - مینی‌گیمِ مقبره/گنجینه (Dungeon)</div>
+  <div class="phone">
+    <div class="dungeon">
+      <div class="dg-bg-placeholder">
+        <div class="txt">📷 جای عکسِ پس‌زمینه‌ی راهروی مقبره<br>(بعداً جایگزین شود)</div>
+      </div>
+      <div class="dg-topbar">
+        <div class="dg-title">مقبره‌ی فراموش‌شده</div>
+      </div>
+      <div class="dg-path">
+        <div class="dg-step current">
+          <div class="dg-step-icon"><svg viewBox="0 0 24 24"><use href="#ic-torch"/></svg></div>
+          <div class="dg-step-text">راهرویی تاریک پیشِ روست...</div>
+        </div>
+        <div class="dg-step done">
+          <div class="dg-step-icon"><svg viewBox="0 0 24 24"><use href="#ic-chest"/></svg></div>
+          <div class="dg-step-text">صندوقچه‌ای کهنه یافتی</div>
+        </div>
+        <div class="dg-step done">
+          <div class="dg-step-icon"><svg viewBox="0 0 24 24"><use href="#ic-skull"/></svg></div>
+          <div class="dg-step-text">از کنارِ استخوان‌ها گذشتی</div>
+        </div>
+      </div>
+      <div class="dg-prompt">
+        <div class="dg-prompt-text">صدایی از اعماقِ مقبره می‌آید. ادامه می‌دهی یا بازمی‌گردی؟</div>
+        <div class="dg-choices">
+          <div class="dg-choice go">ادامه بده</div>
+          <div class="dg-choice flee">فرار کن</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="label">۱۲ - مینی‌گیمِ تخته‌نرد (Backgammon)</div>
+  <div class="phone">
+    <div class="backg">
+      <div class="bg-topbar">
+        <div class="bg-title">تخته‌نرد با وزیرِ دربار</div>
+        <div class="bg-dice">
+          <div class="die">۴</div>
+          <div class="die">۲</div>
+        </div>
+      </div>
+      <div class="bg-board">
+        <div class="bg-half">
+          <div class="bg-point top"><div class="bg-checker chk-oppo"></div><div class="bg-checker chk-oppo"></div></div>
+          <div class="bg-point top"></div>
+          <div class="bg-point top"><div class="bg-checker chk-king"></div></div>
+          <div class="bg-point top"></div>
+          <div class="bg-point top"><div class="bg-checker chk-oppo"></div></div>
+          <div class="bg-point top"></div>
+        </div>
+        <div class="bg-mid-bar"></div>
+        <div class="bg-half">
+          <div class="bg-point bot"><div class="bg-checker chk-king"></div><div class="bg-checker chk-king"></div><div class="bg-checker chk-king"></div></div>
+          <div class="bg-point bot"></div>
+          <div class="bg-point bot"><div class="bg-checker chk-oppo"></div></div>
+          <div class="bg-point bot"></div>
+          <div class="bg-point bot"><div class="bg-checker chk-king"></div></div>
+          <div class="bg-point bot"></div>
+        </div>
+      </div>
+      <div class="bg-footer">
+        <div class="bg-hint">مهره‌ای را برای حرکت با تاسِ ۴ انتخاب کن</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
