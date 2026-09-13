@@ -16,7 +16,7 @@ import type { GameState } from './types';
 
 export interface ChainDirective {
   kind: 'next' | 'jump';
-  steps?: number;
+  steps?: number; // number of '>' chars for a bare 'next' directive
   targetKey?: string;
 }
 
