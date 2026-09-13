@@ -85,14 +85,24 @@ export function selectNextCard(state: GameState): CardRow | null {
   //    here too so selectNextCard never accidentally skips past a duel.)
   if (state.pendingDuelKey) return null;
 
-  // 1. bare '>' directive: go straight to the card at id+steps, bypassing
-  //    weight/conditions entirely (Engine Spec §7 step 1, §8 worked example).
+  // 1. bare '>' directive: go to the card at id+steps IF it's currently
+  //    eligible (conditions/bearer/lockturn) — otherwise the chain is
+  //    considered ended and we fall through to the normal pool.
+  //    Verified against real data: #578 (dynasty-1 tutorial's last card)
+  //    has a bare '>' pointing at id+1 = #579, which is "second_ghost"
+  //    gated behind `conditions: dynasty=2` — forcing an unconditional
+  //    jump here would show dynasty-2 tutorial content during dynasty 1.
+  //    The Engine Spec's own worked chain example (#590->591->592, Engine
+  //    Spec §8) has no conditions on any of those three cards, so adding
+  //    this eligibility check changes nothing for the confirmed example
+  //    while fixing the leak above.
   if (state.pendingNextCardId !== null) {
     const targetId = state.pendingNextCardId;
     state.pendingNextCardId = null;
     const direct = CARDS.find((c) => c.id === targetId);
-    if (direct) return direct;
-    // dead end (id doesn't exist) -> fall through to normal pool
+    if (direct && cardIsEligible(state, direct)) return direct;
+    // target doesn't exist, or isn't eligible right now -> chain ends,
+    // fall through to normal pool
   }
 
   // 2. '>_X' directive: pick among the chain-start group sharing that card_key,
