@@ -6,9 +6,10 @@ interface SettingsScreenProps {
   onToggleSound: () => void;
   onToggleMusic: () => void;
   onBack: () => void;
+  onResetToFirstCard: () => void;
 }
 
-export function SettingsScreen({ soundEnabled, musicEnabled, onToggleSound, onToggleMusic, onBack }: SettingsScreenProps) {
+export function SettingsScreen({ soundEnabled, musicEnabled, onToggleSound, onToggleMusic, onBack, onResetToFirstCard }: SettingsScreenProps) {
   return (
     <div style={{ padding: '32px 20px', height: '100%', background: 'var(--ivory)', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ color: 'var(--brown)', fontSize: 20, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}>تنظیمات</div>
@@ -20,6 +21,16 @@ export function SettingsScreen({ soundEnabled, musicEnabled, onToggleSound, onTo
         <span style={{ color: 'var(--brown)', fontSize: 15 }}>زبان</span>
         <span style={{ color: 'var(--brown)', fontSize: 15 }}>فارسی</span>
       </div>
+
+      {/* Debug/QA: lets a tester jump straight to the game's very first
+          tutorial card at any time, without deleting the app's storage. */}
+      <button
+        className="btn btn-secondary"
+        onClick={onResetToFirstCard}
+        style={{ borderColor: 'var(--lapis)', color: 'var(--lapis)' }}
+      >
+        دیدنِ کارتِ شروعِ بازی (ریست به سلطنتِ اول)
+      </button>
 
       <button className="btn btn-secondary" style={{ marginTop: 'auto' }} onClick={onBack}>
         بازگشت

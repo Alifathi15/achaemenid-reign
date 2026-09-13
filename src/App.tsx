@@ -53,6 +53,23 @@ export default function App() {
     setScreen('reignStart');
   }
 
+  /** Debug/QA button: force-reset to dynasty 1 and start a fresh reign, so
+   * the tutorial/opening card (id 575, "first_card") is guaranteed to show
+   * up every time, regardless of how many reigns have been played before.
+   * Persists dynastyCount=1 to the profile too, so this isn't just a
+   * one-shot in-memory trick — reopening the app afterward keeps it reset. */
+  function handleResetToFirstCard() {
+    resetUnlockedObjectives();
+    const fresh = createInitialState();
+    fresh.dynasty = 1;
+    setState(fresh);
+    setDecisionsCount(0);
+    if (profile) {
+      persistProfile({ ...profile, dynastyCount: 1 });
+    }
+    setScreen('reignStart');
+  }
+
   function handleReignStartContinue() {
     if (state.pendingDuelKey) {
       setScreen('duel');
@@ -228,6 +245,7 @@ export default function App() {
           onToggleSound={handleToggleSound}
           onToggleMusic={handleToggleMusic}
           onBack={() => setScreen('home')}
+          onResetToFirstCard={handleResetToFirstCard}
         />
       )}
     </div>
