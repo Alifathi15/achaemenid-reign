@@ -182,11 +182,13 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
           const affected = activeDelta ? cellIsAffected(activeDelta[key]) : false;
           return (
             <div key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 70 }}>
-              <div style={{ position: 'relative', width: 32, height: 32 }}>
+              {/* rounded-square navy icon box, matching the user's exact reference design
+                  (upload_20260913_195609_3.png) — replaced the earlier circular badge. */}
+              <div style={{ position: 'relative', width: 40, height: 40 }}>
                 <StatPreviewDot visible={affected} opacity={dragStrength} />
                 <div
                   style={{
-                    width: 32, height: 32, borderRadius: '50%', background: 'var(--lapis)',
+                    width: 40, height: 40, borderRadius: 10, background: 'var(--lapis)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     boxShadow: affected && dragStrength > 0 ? `0 0 0 ${2 * dragStrength}px rgba(255,255,255,${0.5 * dragStrength})` : 'none',
                     transition: dragging ? 'none' : 'box-shadow .2s',
@@ -196,7 +198,7 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
                   <img
                     src={`${import.meta.env.BASE_URL}images/stats/${meta.image}.png`}
                     alt={meta.label}
-                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                    style={{ width: 24, height: 24, objectFit: 'contain' }}
                   />
                 </div>
               </div>
