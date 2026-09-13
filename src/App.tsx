@@ -190,6 +190,7 @@ export default function App() {
           kingName={KING_NAMES[state.dynasty % KING_NAMES.length]}
           startYear={state.year}
           unlockedAchievements={profile?.unlockedAchievements ?? []}
+          activeBearers={state.activeBearers}
           onContinue={handleReignStartContinue}
         />
       )}

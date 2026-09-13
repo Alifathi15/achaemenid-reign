@@ -10,19 +10,45 @@ interface ReignStartScreenProps {
   kingName: string;
   startYear: number;
   unlockedAchievements: string[];
+  /** Currently-active bearer set (who's actually in the court right now).
+   * Used to filter which objectives are shown as this reign's goals — see
+   * isObjectiveReachable() below. */
+  activeBearers: Set<string>;
   onContinue: () => void;
 }
 
-export function ReignStartScreen({ dynastyIndex, kingName, startYear, unlockedAchievements, onContinue }: ReignStartScreenProps) {
+/** An objective is only meaningful to show the player as a "goal to strive
+ * for" if it's actually reachable given who is currently in the court.
+ * Per explicit user requirement: goals shown at reign start must reflect
+ * which card-bearer groups are actually active, not the raw objective list.
+ * Rule (confirmed against the data — 38/45 objectives have no has_X term at
+ * all, so this rarely excludes anything unnecessarily): an objective whose
+ * condition references has_X is only reachable if X is currently in
+ * activeBearers. Objectives with no has_X term (age/year/dynasty/flag-based)
+ * are always considered reachable, since those don't depend on which bearer
+ * cards have unlocked yet. */
+function isObjectiveReachable(conditions: string | null, activeBearers: Set<string>): boolean {
+  if (!conditions) return true;
+  const hasMatches = conditions.match(/has_(\w+)/g);
+  if (!hasMatches) return true;
+  return hasMatches.every((m) => activeBearers.has(m.slice(4)));
+}
+
+export function ReignStartScreen({ dynastyIndex, kingName, startYear, unlockedAchievements, activeBearers, onContinue }: ReignStartScreenProps) {
   // Show 3 objective "goals to strive for" this reign: prioritize ones not
-  // yet unlocked, mark done if the player already has them from a prior reign.
+  // yet unlocked, mark done if the player already has them from a prior
+  // reign. Only ever pick from objectives that are currently REACHABLE given
+  // the active bearer set — otherwise the player is shown a goal like "talk
+  // to the fortune teller" when the fortune teller was never unlocked in
+  // this court, with no way to know how to make it appear.
   const goals = useMemo(() => {
     const unlockedSet = new Set(unlockedAchievements);
-    const notDone = OBJECTIVES.filter((o) => !unlockedSet.has(o.name));
-    const done = OBJECTIVES.filter((o) => unlockedSet.has(o.name));
+    const reachable = OBJECTIVES.filter((o) => isObjectiveReachable(o.conditions, activeBearers));
+    const notDone = reachable.filter((o) => !unlockedSet.has(o.name));
+    const done = reachable.filter((o) => unlockedSet.has(o.name));
     const picked = [...notDone.slice(0, 2), ...done.slice(0, 1)].slice(0, 3);
     return picked.map((o) => ({ title: o.title, done: unlockedSet.has(o.name) }));
-  }, [unlockedAchievements]);
+  }, [unlockedAchievements, activeBearers]);
 
   // future generation preview avatars — purely decorative, cycles a fixed set
   const futureAvatars = ['🏹', '🛕', '🏯', '⚔'];
