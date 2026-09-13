@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import type { CardRow, GameState, StatKey } from '../engine/types';
-import { Icon } from '../components/Icons';
 import bearersData from '../data/bearers.json';
-import { previewSign, type StatPreviewSign } from '../engine/valueParser';
+import { parseRawValue } from '../engine/valueParser';
 
 interface BearerRow {
   key: string;
@@ -87,11 +86,11 @@ interface MainGameScreenProps {
   onDecide: (decision: 'yes' | 'no') => void;
 }
 
-const STAT_META: Record<StatKey, { icon: string; label: string; color: string }> = {
-  faith: { icon: 'flame', label: 'آتشکده', color: 'var(--gold)' },
-  army: { icon: 'sword', label: 'ارتش', color: 'var(--oxide)' },
-  people: { icon: 'people', label: 'مردم', color: 'var(--olive)' },
-  treasury: { icon: 'vessel', label: 'خزانه', color: 'var(--lapis)' },
+const STAT_META: Record<StatKey, { image: string; label: string }> = {
+  faith: { image: 'faith', label: 'آتشکده' },
+  army: { image: 'army', label: 'ارتش' },
+  people: { image: 'people', label: 'مردم' },
+  treasury: { image: 'treasury', label: 'خزانه' },
 };
 
 const STAT_KEYS: StatKey[] = ['faith', 'army', 'people', 'treasury'];
@@ -100,30 +99,29 @@ const DECIDE_THRESHOLD = 90;
 // distance of drag needed for the in-card Yes/No label + background tint + top-stat preview to reach full strength
 const REVEAL_DISTANCE = 100;
 
-/** Reigns' actual mechanic (confirmed via GDC talk + Reddit "how do I know
- * positive/negative impact" thread + BirthMoviesDeath review — see engine
- * spec history): the 4 icons at the TOP of the screen fill/drain to show
- * impact, and ONLY the stat(s) this card's current drag direction actually
- * affects light up — the other icons stay dim. This replaces the old plain
- * dot-indicator with the real up/down arrow + only-affected-icons behavior. */
-function StatPreviewArrow({ sign, opacity }: { sign: StatPreviewSign; opacity: number }) {
-  if (sign === 'none' || opacity <= 0) return null;
-  const isUp = sign === 'up';
-  const isMixed = sign === 'mixed';
-  const isLock = sign === 'lock';
-  const color = isLock ? 'var(--brown)' : isMixed ? 'var(--gold)' : isUp ? '#3f7d3a' : 'var(--oxide)';
+/** Whether a stat-delta cell actually changes anything (a plain number, a
+ * "lock", or a randomized range) — used ONLY to decide whether to show the
+ * plain affected-dot, never its sign, per explicit user instruction that
+ * the player must not be told positive vs negative. */
+function cellIsAffected(raw: number | string | null | undefined): boolean {
+  return parseRawValue(raw).kind !== 'none';
+}
+/** Per explicit user correction: NOT an up/down arrow, and the player must
+ * NOT be told whether the effect is positive or negative — just a small
+ * plain dot that says "this stat will be affected", exactly like real
+ * Reigns (the 4 icons fill/drain but do not editorialize direction with an
+ * extra glyph on top). Only the stat(s) the current drag-direction's
+ * decision actually touches get this dot — untouched stats stay bare. */
+function StatPreviewDot({ visible, opacity }: { visible: boolean; opacity: number }) {
+  if (!visible || opacity <= 0) return null;
   return (
     <div
       style={{
-        position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
-        width: 18, height: 18, borderRadius: '50%', background: color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontSize: 11, fontWeight: 900, opacity, zIndex: 2,
-        boxShadow: '0 1px 4px rgba(0,0,0,.4)',
+        position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)',
+        width: 10, height: 10, borderRadius: '50%', background: 'var(--gold)',
+        opacity, zIndex: 2, boxShadow: '0 1px 3px rgba(0,0,0,.5)',
       }}
-    >
-      {isLock ? '🔒' : isMixed ? '?' : isUp ? '↑' : '↓'}
-    </div>
+    />
   );
 }
 
@@ -181,24 +179,29 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
         {STAT_KEYS.map((key) => {
           const meta = STAT_META[key];
           const value = state.stats[key];
-          const sign = activeDelta ? previewSign(activeDelta[key]) : 'none';
+          const affected = activeDelta ? cellIsAffected(activeDelta[key]) : false;
           return (
             <div key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 70 }}>
               <div style={{ position: 'relative', width: 32, height: 32 }}>
-                <StatPreviewArrow sign={sign} opacity={dragStrength} />
+                <StatPreviewDot visible={affected} opacity={dragStrength} />
                 <div
                   style={{
-                    width: 32, height: 32, borderRadius: '50%', background: meta.color,
+                    width: 32, height: 32, borderRadius: '50%', background: 'var(--lapis)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: sign !== 'none' && dragStrength > 0 ? `0 0 0 ${2 * dragStrength}px rgba(255,255,255,${0.5 * dragStrength})` : 'none',
+                    boxShadow: affected && dragStrength > 0 ? `0 0 0 ${2 * dragStrength}px rgba(255,255,255,${0.5 * dragStrength})` : 'none',
                     transition: dragging ? 'none' : 'box-shadow .2s',
+                    overflow: 'hidden',
                   }}
                 >
-                  <Icon name={meta.icon} style={{ width: 17, height: 17, color: '#fff' }} />
+                  <img
+                    src={`${import.meta.env.BASE_URL}images/stats/${meta.image}.png`}
+                    alt={meta.label}
+                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                  />
                 </div>
               </div>
               <div style={{ width: 60, height: 6, background: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${value}%`, background: meta.color, borderRadius: 3 }} />
+                <div style={{ height: '100%', width: `${value}%`, background: 'var(--gold)', borderRadius: 3 }} />
               </div>
               <div style={{ color: 'var(--ivory)', fontSize: 10 }}>{meta.label}</div>
             </div>
