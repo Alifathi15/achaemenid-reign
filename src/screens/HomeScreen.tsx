@@ -6,9 +6,13 @@ interface HomeScreenProps {
   onOpenShop: () => void;
   onOpenSettings: () => void;
   onOpenDynastyHistory: () => void;
+  /** True when there's a live, in-progress reign saved from last time the
+   * app was open — changes the button label from "شروع" to "ادامه" so the
+   * player knows they're resuming, not starting over. */
+  hasSavedReign: boolean;
 }
 
-export function HomeScreen({ onStart, onOpenShop, onOpenSettings, onOpenDynastyHistory }: HomeScreenProps) {
+export function HomeScreen({ onStart, onOpenShop, onOpenSettings, onOpenDynastyHistory, hasSavedReign }: HomeScreenProps) {
   return (
     <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -35,7 +39,7 @@ export function HomeScreen({ onStart, onOpenShop, onOpenSettings, onOpenDynastyH
 
       <div>
         <button className="btn btn-primary" style={{ marginBottom: 12 }} onClick={onStart}>
-          شروع / ادامه
+          {hasSavedReign ? 'ادامه' : 'شروع'}
         </button>
         <button className="btn btn-secondary" onClick={onOpenShop}>
           فروشگاه

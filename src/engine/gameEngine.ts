@@ -41,6 +41,111 @@ export function createInitialState(): GameState {
   };
 }
 
+/** Family-relationship bearers tied to THIS specific king, not the dynasty —
+ * confirmed from the data: 12 cards explicitly call del_queen/del_prince on
+ * in-game story events (queen's death, divorce, prince kidnapped), proving
+ * the designer's own intent is that these are transient per-reign
+ * relationships, not inherited institutional roles (unlike has_general,
+ * has_doctor, has_witch etc, which ARE court positions that persist). No
+ * card ever calls del_X for these on the king's own death (that event isn't
+ * modeled as a custom token at all — it's the reign-end system itself), so
+ * this exclusion has to be applied explicitly when starting the next reign. */
+const FAMILY_BEARERS_CLEARED_ON_DEATH = ['queen', 'prince', 'lady', 'rival'];
+
+/** Builds the GameState for the NEXT reign after a king's death, carrying
+ * forward exactly what the data says should persist across the dynasty and
+ * resetting exactly what's scoped to a single reign. Every rule below is
+ * derived from the data itself, not guessed — see each comment for the
+ * concrete evidence. This function IS the answer to "must eligibility gates
+ * (conditions/lockturn) still be honored after death" — reusing the exact
+ * same lockedCards Map (minus reign-scoped locks) and flags/counters means
+ * selectNextCard()'s conditions/lockturn checks behave identically for the
+ * heir as they did mid-reign; nothing bypasses them.
+ *
+ * KEPT across reigns (dynasty-wide, never reset):
+ *  - stats reset to 50/50/50/50 — every reign narratively starts fresh
+ *    (confirmed: this mirrors createInitialState(), and no card conditions
+ *    on "this reign's cumulative stat history" vs the live stat value).
+ *  - year, dynasty, coins — obviously dynasty-wide (calendar time, coin
+ *    economy, reign count).
+ *  - `_keep`-suffixed flags and `nb_X` counters (buildings, war counts,
+ *    duel wins, the devil curse, etc) — confirmed dynasty-wide by the data
+ *    itself: e.g. card #711 (devil chain's generational return) requires
+ *    `year>765 and devil_curse_keep`, which is only ever reachable if
+ *    devil_curse_keep survives the king who first triggered it dying;
+ *    #587 (duel unlock) requires `nb_duelwon_keep<4 and dynasty>3`, i.e. a
+ *    counter accumulated across multiple kings gating a LATER dynasty.
+ *  - lockedCards for numeric AND 'del' lockturns, with 'reign' locks
+ *    stripped out (see below) — this is what makes conditions/lockturn
+ *    keep being honored: a "del" (one-time-ever) card stays permanently
+ *    excluded for the heir, exactly like it would for the same king.
+ *  - activeBearers (court roster) MINUS the 4 family-relationship bearers
+ *    — see FAMILY_BEARERS_CLEARED_ON_DEATH above. Institutional roles
+ *    (general, doctor, witch, priest, spy...) persist because they're
+ *    court POSITIONS, not personal relationships of the dead king.
+ *
+ * RESET per reign (cleared for the new king):
+ *  - age back to 18 (new king's own age).
+ *  - flags that are NOT `_keep`-suffixed (isLover, isCoward, isGreedy,
+ *    devil_visit, etc) — confirmed these are the dead king's own personal
+ *    behavioral traits, not inheritable: e.g. card #293 (start of a court
+ *    romance) is gated `!has_lady and !isLover` — if isLover persisted
+ *    forever after one king fell in love, no future king could ever start
+ *    that story again, which the weighted-random pool design (this card
+ *    can recur any reign) contradicts.
+ *  - lockedCards entries whose value is 'reign' (lockturn="reign" cards) —
+ *    the label itself says "locked until the end of THIS reign", so they
+ *    must reopen for the heir. Numeric and 'del' locks are NOT touched.
+ *  - pendingNextCardId / pendingChainCardKey / pendingDuelKey — no
+ *    story-chain or duel-in-progress should carry into a new king's reign;
+ *    a fresh reign always starts by drawing from the normal pool (or the
+ *    dynasty=1/2 tutorial gate) via selectNextCard(), never mid-chain.
+ *  - turnCount, isDead, deathReason — per-reign bookkeeping.
+ *  - unlockedObjectiveNames (module-level Set) is intentionally NOT reset
+ *    here — see resetUnlockedObjectives()'s caller in App.tsx; achievements
+ *    are dynasty-wide (once earned, always earned) so they must persist,
+ *    which is why App.tsx must switch to loading/saving them from
+ *    PlayerProfile instead of calling resetUnlockedObjectives() on every
+ *    reign start (that call was previously WRONG per this same rule — see
+ *    the db.ts changes in this same commit). */
+export function createNextReignState(previous: GameState): GameState {
+  const carriedFlags: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(previous.flags)) {
+    if (key.endsWith('_keep')) carriedFlags[key] = value;
+  }
+
+  const carriedLockedCards = new Map<number, number | 'reign'>();
+  for (const [id, turns] of previous.lockedCards) {
+    if (turns === 'reign') continue; // reign-scoped lock: reopens for the heir
+    carriedLockedCards.set(id, turns);
+  }
+
+  const carriedBearers = new Set(previous.activeBearers);
+  for (const familyBearer of FAMILY_BEARERS_CLEARED_ON_DEATH) {
+    carriedBearers.delete(familyBearer);
+  }
+
+  return {
+    stats: { faith: 50, army: 50, people: 50, treasury: 50 },
+    age: 18,
+    year: previous.year,
+    dynasty: previous.dynasty + 1,
+    flags: carriedFlags,
+    counters: { ...previous.counters },
+    activeBearers: carriedBearers,
+    activeEffects: new Map(), // effects are transient buffs, not modeled as dynasty-wide in the data
+    lockedCards: carriedLockedCards,
+    pendingNextCardId: null,
+    pendingChainCardKey: null,
+    pendingChainConditionOverride: null,
+    pendingDuelKey: null,
+    turnCount: 0,
+    coins: previous.coins,
+    isDead: false,
+    deathReason: null,
+  };
+}
+
 function cardIsEligible(state: GameState, card: CardRow): boolean {
   // NOTE: bearer presence in activeBearers is NOT a gate on card selection.
   // Confirmed from TWO independent sources: (1) Achaemenid GDD §16.5 —
@@ -181,6 +286,20 @@ export interface TurnResult {
 
 const unlockedObjectiveNames = new Set<string>();
 
+/** Loads the module-level unlocked-objective tracker from persisted names
+ * (e.g. profile.unlockedAchievements from IndexedDB) — call this once on
+ * app startup, NOT on every reign start. Achievements are dynasty-wide:
+ * once earned, they must stay earned across the player's whole save file,
+ * not reset every time a new king begins. */
+export function loadUnlockedObjectives(names: string[]) {
+  unlockedObjectiveNames.clear();
+  for (const n of names) unlockedObjectiveNames.add(n);
+}
+
+export function getUnlockedObjectiveNames(): string[] {
+  return [...unlockedObjectiveNames];
+}
+
 export function applyDecision(state: GameState, card: CardRow, decision: 'yes' | 'no'): TurnResult {
   const delta = decision === 'yes' ? card.yes : card.no;
   applyStatDelta(state, delta);
@@ -288,6 +407,73 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
 
 export function resetUnlockedObjectives() {
   unlockedObjectiveNames.clear();
+}
+
+/** Serializes a GameState to a plain JSON-safe object for IndexedDB storage
+ * (Dexie/structured-clone can technically store Map/Set directly, but a
+ * plain-object/array form is used here so the save survives across Dexie
+ * schema changes and is trivially debuggable/exportable). Call this after
+ * every decision (or on an interval) to persist the LIVE, in-progress
+ * reign — not just at death — so closing the app mid-reign doesn't lose
+ * the year/stats/story-chain progress. */
+export interface SerializedGameState {
+  stats: GameState['stats'];
+  age: number;
+  year: number;
+  dynasty: number;
+  flags: Record<string, boolean>;
+  counters: Record<string, number>;
+  activeBearers: string[];
+  lockedCards: [number, number | 'reign'][];
+  pendingNextCardId: number | null;
+  pendingChainCardKey: string | null;
+  pendingDuelKey: string | null;
+  turnCount: number;
+  coins: number;
+  isDead: boolean;
+  deathReason: string | null;
+}
+
+export function serializeGameState(state: GameState): SerializedGameState {
+  return {
+    stats: { ...state.stats },
+    age: state.age,
+    year: state.year,
+    dynasty: state.dynasty,
+    flags: { ...state.flags },
+    counters: { ...state.counters },
+    activeBearers: [...state.activeBearers],
+    lockedCards: [...state.lockedCards.entries()],
+    pendingNextCardId: state.pendingNextCardId,
+    pendingChainCardKey: state.pendingChainCardKey,
+    pendingDuelKey: state.pendingDuelKey,
+    turnCount: state.turnCount,
+    coins: state.coins,
+    isDead: state.isDead,
+    deathReason: state.deathReason,
+  };
+}
+
+export function deserializeGameState(saved: SerializedGameState): GameState {
+  return {
+    stats: { ...saved.stats },
+    age: saved.age,
+    year: saved.year,
+    dynasty: saved.dynasty,
+    flags: { ...saved.flags },
+    counters: { ...saved.counters },
+    activeBearers: new Set(saved.activeBearers),
+    activeEffects: new Map(), // not persisted — effects are re-derivable from flags/counters if ever needed
+    lockedCards: new Map(saved.lockedCards),
+    pendingNextCardId: saved.pendingNextCardId,
+    pendingChainCardKey: saved.pendingChainCardKey,
+    pendingChainConditionOverride: null,
+    pendingDuelKey: saved.pendingDuelKey,
+    turnCount: saved.turnCount,
+    coins: saved.coins,
+    isDead: saved.isDead,
+    deathReason: saved.deathReason,
+  };
 }
 
 /** Called once a Duel mini-game finishes. Sets `duel_won` per the RE'd

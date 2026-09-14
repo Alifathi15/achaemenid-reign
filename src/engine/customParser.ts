@@ -98,6 +98,24 @@ export function applyCustom(state: GameState, custom: string | null | undefined)
       continue;
     }
 
+    // '!X' where X is NOT a comparison/negated-condition prefix (that
+    // grammar belongs to conditionParser.ts, not here) — in the CUSTOM
+    // grammar, a bare '!flag' token means "clear this flag", the inverse
+    // of a bare 'flag' token setting it true. Confirmed necessary by real
+    // data: card #710 (devil-chain climax) has custom
+    // "!devil_visit and devil_curse_keep" — devil_visit must be cleared
+    // (the visit is over) while devil_curse_keep is set true (the curse
+    // begins) in the SAME token list. Previously this fell through to the
+    // generic "bare flag" branch below, which set a flag literally named
+    // "!devil_visit" to true instead of clearing "devil_visit" — meaning
+    // conditions checking devil_visit later never saw it cleared, and any
+    // future condition checking a negated custom-cleared flag would
+    // silently misbehave the same way.
+    if (token.startsWith('!')) {
+      delete state.flags[token.slice(1)];
+      continue;
+    }
+
     // fallback: bare flag set true (covers things like isLover, isStone, etc.)
     state.flags[token] = true;
   }

@@ -7,10 +7,29 @@ import { DeathScreen } from './screens/DeathScreen';
 import { ProgressSummaryScreen } from './screens/ProgressSummaryScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { createInitialState, selectNextCard, applyDecision, resetUnlockedObjectives, resolveDuelOutcome } from './engine/gameEngine';
+import {
+  createInitialState,
+  createNextReignState,
+  selectNextCard,
+  applyDecision,
+  resolveDuelOutcome,
+  loadUnlockedObjectives,
+  getUnlockedObjectiveNames,
+  serializeGameState,
+  deserializeGameState,
+  CARDS,
+} from './engine/gameEngine';
 import type { CardRow, GameState } from './engine/types';
 import { computeCoinsEarned, ABILITY_PRICES, COIN_PACKS } from './economy/economy';
-import { getOrCreateProfile, saveProfile, recordReign, type PlayerProfile } from './db/db';
+import {
+  getOrCreateProfile,
+  saveProfile,
+  recordReign,
+  saveLiveReign,
+  getLiveReign,
+  clearLiveReign,
+  type PlayerProfile,
+} from './db/db';
 import { DuelScreen } from './screens/DuelScreen';
 import bearersData from './data/bearers.json';
 
@@ -26,6 +45,15 @@ export default function App() {
   const [state, setState] = useState<GameState>(() => createInitialState());
   const [currentCard, setCurrentCard] = useState<CardRow | null>(null);
   const [decisionsCount, setDecisionsCount] = useState(0);
+  const [hasSavedReign, setHasSavedReign] = useState(false);
+  // True right after a reign ends: `state` already holds the correctly
+  // carried-over heir state (see createNextReignState — stats reset,
+  // dynasty-wide flags/counters/roster kept, family bearers cleared,
+  // reign-scoped locks reopened). handleStart must use THIS state as-is
+  // instead of calling createInitialState() again, or all that carryover
+  // (including the persistence rules that make conditions/lockturn keep
+  // being honored for the heir) would be silently discarded.
+  const [readyForNextReign, setReadyForNextReign] = useState(false);
   const [lastReignCoins, setLastReignCoins] = useState(0);
   const [lastDeathAge, setLastDeathAge] = useState(0);
   const [lastYearsRuled, setLastYearsRuled] = useState(0);
@@ -35,48 +63,115 @@ export default function App() {
   useEffect(() => {
     getOrCreateProfile().then((p) => {
       setProfile(p);
+      // Achievements are dynasty-wide (see gameEngine.ts's
+      // loadUnlockedObjectives doc comment) — load them once here, NOT on
+      // every reign start. Previously resetUnlockedObjectives() was called
+      // in handleStart(), which wiped the whole game's achievement
+      // progress back to zero every single time the player started a new
+      // reign — a real bug, not just a missing save feature.
+      loadUnlockedObjectives(p.unlockedAchievements);
       setScreen('home');
     });
   }, []);
+
+  // Detect whether there's a live, in-progress reign to resume — checked
+  // once on startup and re-checked whenever we return to Home, so the
+  // "شروع"/"ادامه" button label and behavior stay accurate.
+  const refreshSavedReignFlag = useCallback(() => {
+    getLiveReign().then((rec) => setHasSavedReign(!!rec));
+  }, []);
+  useEffect(() => {
+    refreshSavedReignFlag();
+  }, [refreshSavedReignFlag]);
 
   const persistProfile = useCallback((next: PlayerProfile) => {
     setProfile(next);
     void saveProfile(next);
   }, []);
 
+  /** Persists the LIVE in-progress reign after every state-changing action
+   * (decision, duel resolution) — not just at death. This is what makes
+   * closing the app mid-reign safe: reopening resumes from exactly this
+   * point, including mid-chain/mid-duel, rather than losing the reign. */
+  const persistLiveReign = useCallback(
+    (nextState: GameState, nextCard: CardRow | null, nextDecisionsCount: number, nextScreen: 'game' | 'duel') => {
+      void saveLiveReign({
+        gameState: serializeGameState(nextState),
+        currentCardId: nextCard?.id ?? null,
+        decisionsCount: nextDecisionsCount,
+        screen: nextScreen,
+      });
+    },
+    []
+  );
+
   function handleStart() {
-    resetUnlockedObjectives();
-    const fresh = createInitialState();
-    fresh.dynasty = profile?.dynastyCount ?? 1;
-    setState(fresh);
-    setDecisionsCount(0);
-    setScreen('reignStart');
+    // "شروع/ادامه": if there's a saved live reign, resume it exactly where
+    // it left off (screen, current card, decision count included) instead
+    // of starting a fresh one — this is the actual fix for "closing the app
+    // loses your progress".
+    getLiveReign().then((rec) => {
+      if (rec) {
+        const restoredState = deserializeGameState(rec.gameState);
+        setState(restoredState);
+        setDecisionsCount(rec.decisionsCount);
+        if (rec.screen === 'duel' && restoredState.pendingDuelKey) {
+          setScreen('duel');
+        } else {
+          const card = rec.currentCardId ? CARDS.find((c) => c.id === rec.currentCardId) ?? null : null;
+          setCurrentCard(card);
+          setScreen('game');
+        }
+        return;
+      }
+      // No saved live reign. Two cases:
+      //  (a) readyForNextReign=true: a reign just ended and `state` already
+      //      holds the correctly carried-over heir state — use it as-is.
+      //  (b) readyForNextReign=false: genuinely the very first reign ever
+      //      (or after the debug reset) — build a brand-new dynasty-1 state.
+      if (!readyForNextReign) {
+        const fresh = createInitialState();
+        fresh.dynasty = profile?.dynastyCount ?? 1;
+        setState(fresh);
+      }
+      setReadyForNextReign(false);
+      setDecisionsCount(0);
+      setScreen('reignStart');
+    });
   }
 
   /** Debug/QA button: force-reset to dynasty 1 and start a fresh reign, so
    * the tutorial/opening card (id 575, "first_card") is guaranteed to show
    * up every time, regardless of how many reigns have been played before.
    * Persists dynastyCount=1 to the profile too, so this isn't just a
-   * one-shot in-memory trick — reopening the app afterward keeps it reset. */
+   * one-shot in-memory trick — reopening the app afterward keeps it reset.
+   * Also clears any saved live reign, since this is an explicit "start
+   * completely over" action. */
   function handleResetToFirstCard() {
-    resetUnlockedObjectives();
+    void clearLiveReign();
     const fresh = createInitialState();
     fresh.dynasty = 1;
     setState(fresh);
+    setReadyForNextReign(false);
     setDecisionsCount(0);
     if (profile) {
-      persistProfile({ ...profile, dynastyCount: 1 });
+      const resetProfile = { ...profile, dynastyCount: 1, unlockedAchievements: [] };
+      loadUnlockedObjectives([]);
+      persistProfile(resetProfile);
     }
+    refreshSavedReignFlag();
     setScreen('reignStart');
   }
 
   function handleReignStartContinue() {
     if (state.pendingDuelKey) {
+      persistLiveReign(state, null, decisionsCount, 'duel');
       setScreen('duel');
       return;
     }
     const next = selectNextCard(state);
     setCurrentCard(next);
+    persistLiveReign(state, next, decisionsCount, 'game');
     setScreen('game');
   }
 
@@ -84,7 +179,8 @@ export default function App() {
     if (!currentCard) return;
     const result = applyDecision(state, currentCard, decision);
     setState({ ...state });
-    setDecisionsCount((c) => c + 1);
+    const nextDecisionsCount = decisionsCount + 1;
+    setDecisionsCount(nextDecisionsCount);
 
     if (result.died) {
       const coinsEarned = computeCoinsEarned(state.age);
@@ -101,7 +197,7 @@ export default function App() {
         yearsRuled: state.age - 18,
         deathReason: result.deathReason ?? 'unknown',
         coinsEarned,
-        decisionsCount: decisionsCount + 1,
+        decisionsCount: nextDecisionsCount,
         finishedAt: Date.now(),
       });
 
@@ -111,19 +207,36 @@ export default function App() {
           coins: profile.coins + coinsEarned,
           dynastyCount: profile.dynastyCount + 1,
           totalReigns: profile.totalReigns + 1,
+          // Achievements unlocked this reign are already in the module-level
+          // tracker (applyDecision adds to it directly) — persist the full
+          // current list so it survives a reload.
+          unlockedAchievements: getUnlockedObjectiveNames(),
         });
       }
+      // The reign is over — nothing left to resume into. Pre-build the NEXT
+      // reign's carried-over state (stats reset, dynasty-wide flags/roster
+      // kept, family bearers cleared — see createNextReignState's doc
+      // comment) so handleDeathContinue -> handleProgressContinue -> the
+      // next "شروع" press starts the heir already correctly initialized,
+      // honoring every persistence rule (including lockturn/conditions)
+      // exactly as they'd apply mid-reign.
+      const heirState = createNextReignState(state);
+      setState(heirState);
+      setReadyForNextReign(true);
+      void clearLiveReign();
       setScreen('death');
       return;
     }
 
     if (state.pendingDuelKey) {
+      persistLiveReign(state, currentCard, nextDecisionsCount, 'duel');
       setScreen('duel');
       return;
     }
 
     const next = selectNextCard(state);
     setCurrentCard(next);
+    persistLiveReign(state, next, nextDecisionsCount, 'game');
   }
 
   function handleDuelFinished(kingWon: boolean) {
@@ -131,6 +244,7 @@ export default function App() {
     setState({ ...state });
     const next = selectNextCard(state);
     setCurrentCard(next);
+    persistLiveReign(state, next, decisionsCount, 'game');
     setScreen('game');
   }
 
@@ -139,6 +253,7 @@ export default function App() {
   }
 
   function handleProgressContinue() {
+    refreshSavedReignFlag();
     setScreen('home');
   }
 
@@ -181,6 +296,7 @@ export default function App() {
           onOpenShop={() => setScreen('shop')}
           onOpenSettings={() => setScreen('settings')}
           onOpenDynastyHistory={() => setScreen('settings')}
+          hasSavedReign={hasSavedReign}
         />
       )}
 
