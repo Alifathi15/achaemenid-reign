@@ -65,7 +65,7 @@ export interface GameState {
   counters: Record<string, number>;
   activeBearers: Set<string>;
   activeEffects: Map<string, { turnsLeft: number | null }>;
-  lockedCards: Map<number, number | 'reign'>; // cardId -> turns remaining or 'reign'
+  lockedCards: Map<number, number | 'reign' | 'del'>; // cardId -> turns remaining, 'reign' (reopens for the heir), or 'del' (locked forever, dynasty-wide)
   /** Set by a bare `>`/`>>`/... directive: go straight to the card at this
    * exact id (current id + number of `>` chars), bypassing weight/conditions
    * entirely (Engine Spec §7 step 1, §8 worked example: id-sequential, NOT

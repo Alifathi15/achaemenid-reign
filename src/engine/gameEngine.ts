@@ -115,10 +115,10 @@ export function createNextReignState(previous: GameState): GameState {
     if (key.endsWith('_keep')) carriedFlags[key] = value;
   }
 
-  const carriedLockedCards = new Map<number, number | 'reign'>();
+  const carriedLockedCards = new Map<number, number | 'reign' | 'del'>();
   for (const [id, turns] of previous.lockedCards) {
     if (turns === 'reign') continue; // reign-scoped lock: reopens for the heir
-    carriedLockedCards.set(id, turns);
+    carriedLockedCards.set(id, turns); // numeric AND 'del' locks carry over permanently
   }
 
   const carriedBearers = new Set(previous.activeBearers);
@@ -514,12 +514,27 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   //  - a plain number N -> locked for N turns (decremented below)
   //  - "reign"           -> locked for the rest of this king's reign only
   //  - "del" (33 rows, e.g. first_card/intro_merchant/intro_witch — all
-  //    clearly one-time introduction cards) -> INFERRED to mean "never show
-  //    again, permanently, across all future reigns/dynasties too" (stronger
-  //    than "reign"). Not explicitly spelled out in Engine_Spec.md; flagging
-  //    this as an inference, not a confirmed rule, pending verification.
-  if (card.lockturn === 'reign' || card.lockturn === 'del') {
+  //    clearly one-time introduction cards) -> locked FOREVER, dynasty-wide,
+  //    across all future reigns too (stronger than "reign"). Confirmed as a
+  //    REAL bug via direct simulation: card #701 (the devil-story's ONLY
+  //    entry point, lockturn="del", condition "year>665") is meant to fire
+  //    exactly once per save/dynasty, but the previous code stored "del"
+  //    locks using the SAME 'reign' sentinel as true per-reign locks, so
+  //    createNextReignState()'s "reopen 'reign' locks for the heir" rule
+  //    (which is correct for genuine reign-scoped locks) indistinguishably
+  //    reopened "del" locks too. A 5-generation simulation starting at
+  //    year=700 (past the year>665 gate) showed card #701 firing 4 times
+  //    across 5 reigns instead of once — meaning the devil-curse main story
+  //    could restart from scratch for every single heir, which contradicts
+  //    its own once-per-dynasty narrative (and similarly affected all other
+  //    32 "del"-locked cards: first_card/first tutorial, intro_witch,
+  //    intro_nun, intro_merchant, printing, and 5 more devil-chain gates
+  //    #711-746). Fixed by giving 'del' its own distinct sentinel that
+  //    createNextReignState() never reopens.
+  if (card.lockturn === 'reign') {
     state.lockedCards.set(card.id, 'reign');
+  } else if (card.lockturn === 'del') {
+    state.lockedCards.set(card.id, 'del');
   } else if (typeof card.lockturn === 'number' && card.lockturn > 0) {
     state.lockedCards.set(card.id, card.lockturn);
   }
@@ -560,9 +575,10 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
     }
   }
 
-  // decay lockturn counters
+  // decay lockturn counters (only numeric locks decay; 'reign' and 'del'
+  // are both non-numeric sentinels that never tick down here)
   for (const [id, turns] of state.lockedCards) {
-    if (turns === 'reign') continue;
+    if (turns === 'reign' || turns === 'del') continue;
     const next = turns - 1;
     if (next <= 0) state.lockedCards.delete(id);
     else state.lockedCards.set(id, next);
@@ -590,7 +606,7 @@ export interface SerializedGameState {
   flags: Record<string, boolean>;
   counters: Record<string, number>;
   activeBearers: string[];
-  lockedCards: [number, number | 'reign'][];
+  lockedCards: [number, number | 'reign' | 'del'][];
   pendingNextCardId: number | null;
   pendingChainCardKey: string | null;
   pendingDuelKey: string | null;
