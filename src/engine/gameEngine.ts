@@ -42,11 +42,41 @@ export function createInitialState(): GameState {
 }
 
 function cardIsEligible(state: GameState, card: CardRow): boolean {
-  if (card.bearer && card.bearer !== 'anyone' && !state.activeBearers.has(card.bearer)) {
-    return false;
-  }
+  // NOTE: bearer presence in activeBearers is NOT a gate on card selection.
+  // Confirmed from TWO independent sources: (1) Achaemenid GDD §16.5 —
+  // "systematic check of all 883 cards confirms no card checks has_<its own
+  // bearer> in its conditions"; (2) an independently-recovered English
+  // source spreadsheet (Recovered_883_Cards-2.xlsx) shows the same: 0/883
+  // rows self-check has_<own bearer>, and 0 rows ever add_diplomat despite
+  // 51 diplomat-bearer cards existing — if bearer-gating were real, the
+  // diplomat's 51 cards (plus 9 downstream chains depending on diplomat)
+  // would be permanently dead content by design, which no real card game
+  // would ship. `bearer` only selects the portrait/name shown on the card;
+  // `conditions` and `lockturn` are the only two real eligibility gates.
   if (state.lockedCards.has(card.id)) return false;
   return evaluateConditions(state, card.conditions);
+}
+
+/** Cards whose bearer starts with "end>" are ending/narrative cards (42 in
+ * the data, e.g. bearer="end>dead_king_dogs") — per GDD §7 step 12 and §12,
+ * these must be reached ONLY via an explicit chain jump (bare '>' or
+ * '>_marker', both already handled by pendingNextCardId/pendingChainCardKey
+ * BEFORE the random pool is even consulted) — never picked directly out of
+ * the normal weighted-random pool. Confirmed as a real bug once the
+ * bearer-gate above was removed: #163 (end>dead_king_dogs, condition
+ * `overall<30` — a variable the engine doesn't implement yet, so it always
+ * evaluates false) started appearing repeatedly mid-game because nothing
+ * else excluded it, since these cards also carry extreme weights (100 to
+ * 100000) meant to make them near-certain ONCE reached via a chain. This
+ * filter only applies to the final random-pool selection (NOT to
+ * cardIsEligible, which is also used by the legitimate chain-jump paths —
+ * 7 real chains, e.g. #132->#133 end>dead_king_paganist, jump to an end>
+ * card via a bare '>' and must still work). A full priority-checked ending
+ * system (GDD §7 step 12: check end> conditions after every decision,
+ * independent of the draw pool) is a separate feature not yet implemented —
+ * this filter only stops the leak into the random pool. */
+function isEndingCard(card: CardRow): boolean {
+  return !!card.bearer && card.bearer.startsWith('end>');
 }
 
 /** Resolves a card's `weight` cell to a finite number for weighted-random
@@ -122,7 +152,7 @@ export function selectNextCard(state: GameState): CardRow | null {
     state.pendingChainCardKey = null;
   }
 
-  const eligible = CARDS.filter((c) => cardIsEligible(state, c));
+  const eligible = CARDS.filter((c) => cardIsEligible(state, c) && !isEndingCard(c));
   return pickWeighted(eligible);
 }
 
