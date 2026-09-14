@@ -686,15 +686,25 @@ export function resolveDungeonOutcome(state: GameState, kingWon: boolean) {
 /** Called once a Duel mini-game finishes. Sets `duel_won` per the RE'd
  * `DuelAct.CheckDead()` rule (Engine Spec §9: king loses -> duel_won=-1,
  * king wins -> duel_won=1; conditions check `duel_won` as "> 0" and
- * `!duel_won` as "<= 0"), increments nb_duelwon_keep on a win (matches the
- * `_duel_general` chain's own `nb_duelwon_keep+` custom-token convention),
- * then hands off to the normal chain-card group so the matching win/lose
- * branch card (e.g. #588 vs #589) is drawn on the next selectNextCard(). */
+ * `!duel_won` as "<= 0"), then hands off to the normal chain-card group so
+ * the matching win/lose branch card (e.g. #588 vs #589) is drawn on the
+ * next selectNextCard().
+ *
+ * IMPORTANT: this function must NOT touch nb_duelwon_keep itself. Confirmed
+ * as a real double-counting bug via direct simulation: 7 of the 8 duel
+ * groups' own WIN cards already increment nb_duelwon_keep+ in their own
+ * yes/no custom tokens (per the data: #588 _duel_general, #378
+ * _duel_nobleman, #388 _duel_lady, #664 _duel_skeleton, #687
+ * _duel_cowprince, #758 _duel_foreign, #762 _duel_viking — only #318
+ * _duel_painter's win card does NOT increment it, which is the data's own
+ * deliberate choice, not a gap to "fix" here). This function previously
+ * ALSO incremented nb_duelwon_keep on every win, on top of what the win
+ * card's own custom already does — meaning card #587's gate
+ * (nb_duelwon_keep<4 and dynasty>3) closed after just 2 real duel wins
+ * instead of the intended 4, permanently locking the general-duel practice
+ * card out twice as fast as designed. */
 export function resolveDuelOutcome(state: GameState, kingWon: boolean) {
   state.counters['duel_won'] = kingWon ? 1 : -1;
-  if (kingWon) {
-    state.counters['nb_duelwon_keep'] = (state.counters['nb_duelwon_keep'] ?? 0) + 1;
-  }
   state.pendingChainCardKey = state.pendingDuelKey;
   state.pendingDuelKey = null;
 }
