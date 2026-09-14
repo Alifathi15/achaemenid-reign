@@ -186,6 +186,30 @@ function isEndingCard(card: CardRow): boolean {
   return !!card.bearer && card.bearer.startsWith('end>');
 }
 
+/** Cards whose card_key starts with "_duelmove" (28 rows: _duelmove_attack,
+ * _duelmove_defense, _duelmove_special, _duelmove_super) are NOT real
+ * playable content — they are the ORIGINAL Reigns game's per-round combat
+ * flavor text, kept in the data purely as source material that
+ * `duelEngine.ts`'s real-time rock-paper-scissors mini-game was built from
+ * (see duelEngine.ts's own header comment). They are never reached via any
+ * `>`/`>_X` chain jump in the data (no card's custom ever points at
+ * `_duelmove_*`), so nothing in the story intentionally shows them.
+ *
+ * Confirmed as a REAL bug via direct simulation: because these 28 cards all
+ * have `conditions=null` and are NOT bearer="end>", `cardIsEligible()` sees
+ * them as ordinary eligible cards and the normal pool happily draws them —
+ * 4.5% of all cards drawn in a 200-turn run were these orphaned duel-flavor
+ * lines (e.g. "سردار شمشیر بالا می‌برد؛ اکنون نوبت حمله‌ی پادشاه است" shown
+ * as a bare standalone card with no duel context). 12 of them
+ * (_duelmove_super, the skeleton-guard flavor) carry weight=1000 and 2 more
+ * carry weight=100 — an order of magnitude above ordinary cards' weights of
+ * 1-100 — so whenever eligible they tend to dominate the draw. Filtered out
+ * here exactly like isEndingCard(), so they stay in cards.json as historical
+ * source data (never touched) but can never leak into the live game. */
+function isDuelMoveFlavorCard(card: CardRow): boolean {
+  return !!card.cardKey && card.cardKey.startsWith('_duelmove');
+}
+
 /** The 8 "gatekeeper" cards that fire the instant a stat hits 0 or 100 —
  * confirmed from the data itself: each is the ONLY card whose condition is
  * a bare single-term stat=0/100 comparison (spiritual=0, spiritual=100,
@@ -362,7 +386,7 @@ export function selectNextCard(state: GameState): CardRow | null {
     state.pendingChainCardKey = null;
   }
 
-  const eligible = CARDS.filter((c) => cardIsEligible(state, c) && !isEndingCard(c));
+  const eligible = CARDS.filter((c) => cardIsEligible(state, c) && !isEndingCard(c) && !isDuelMoveFlavorCard(c));
   return pickWeighted(eligible);
 }
 
