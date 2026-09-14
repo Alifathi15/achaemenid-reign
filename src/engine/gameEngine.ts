@@ -273,6 +273,26 @@ export function selectNextCard(state: GameState): CardRow | null {
   if (state.pendingDuelKey) return null;
   if (state.pendingDungeonKey) return null;
 
+  // 0.1. ABSOLUTE priority: the dynasty-1 tutorial opener (#575,
+  //    "first_card", bearer "ghost", conditions "dynasty=1", weight="max",
+  //    lockturn="del" so it can only ever fire once per save). Confirmed
+  //    as a REAL bug (not a false alarm) via a 200-fresh-start simulation:
+  //    card #508 ("_magiclearn", bearer "witch") ALSO carries weight="max"
+  //    with conditions=null (i.e. always eligible, including turn 0) — the
+  //    only other card in the whole 883-row dataset with that exact
+  //    combination. Both cards being tied at the same extreme weight meant
+  //    pickWeighted() coin-flipped between them on a fresh reign: #508 won
+  //    107/200 simulated fresh starts, meaning new players saw the witch's
+  //    unrelated magic-lesson card as their FIRST EVER card well over half
+  //    the time instead of the documented tutorial ghost. Checking #575
+  //    here, before the normal pool (and before the pending-chain/pending-
+  //    next-card checks below, since a truly fresh reign has none of those
+  //    set anyway), guarantees the tutorial always wins the very first
+  //    draw whenever it's still eligible, regardless of what other
+  //    weight="max" cards exist in the pool.
+  const tutorialOpener = CARDS.find((c) => c.id === 575);
+  if (tutorialOpener && cardIsEligible(state, tutorialOpener)) return tutorialOpener;
+
   // 0.5. GDD §7 step 12 — ABSOLUTE priority: if any stat is currently at its
   //    0/100 threshold, its gatekeeper card (see STAT_ENDING_GATEKEEPER_IDS)
   //    must be shown next, interrupting even an in-progress story chain.
