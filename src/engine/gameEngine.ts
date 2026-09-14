@@ -295,39 +295,32 @@ export function selectNextCard(state: GameState): CardRow | null {
 
   // 0.5. GDD §7 step 12 — ABSOLUTE priority: if any stat is currently at its
   //    0/100 threshold, its gatekeeper card (see STAT_ENDING_GATEKEEPER_IDS)
-  //    must be shown next, interrupting even an in-progress story chain.
-  //    Checked before the '>'/'>_X' chain-resume logic below on purpose:
-  //    a stat hitting an extreme is meant to override whatever story was
-  //    in progress, not wait for it to finish. Note this DOES abandon
-  //    whatever pendingNextCardId/pendingChainCardKey was in flight (the
-  //    gatekeeper's own custom, e.g. ">_end_paganism", overwrites it in
-  //    applyDecision right after) — acceptable because a stat genuinely
-  //    hitting 0/100 is a crisis that should take precedence over any
-  //    unrelated story thread, not silently wait behind it.
-  //    GUARD: skip this check while we're already mid-resolution of a
-  //    pending jump into one of these gatekeepers' own '_end_X' chain group.
-  //    Must check what pendingNextCardId ACTUALLY POINTS TO here, not just
-  //    "is it set" — confirmed by a real bug this exact guard used to have:
-  //    card #778 (_end_dungeon group, the dice-game escape check) sets
-  //    stats to 0 via its "yes" AND chains via a plain '>' to #779 (an
-  //    unrelated card, cardKey "_", a court celebration with no connection
-  //    to any ending). A blanket "pendingNextCardId !== null" guard wrongly
-  //    treated that as "mid end> resolution" and skipped the gatekeeper
-  //    check entirely — so the reign never actually reached its ending;
-  //    #779 restored all 4 stats back to 50 with its own delta, and the
-  //    #778<->#779 pair looped forever (confirmed via simulation: this
-  //    pattern alone locked ~90% of test reigns into an infinite loop).
-  //    The real distinguishing test is whether the TARGET card of that bare
-  //    '>' is itself part of an "_end_" chain group (or its own end> death
-  //    card) — #779 is not, so the guard must NOT suppress the gatekeeper
-  //    check just because *some* pendingNextCardId happens to be set.
-  const pendingNextTarget =
-    state.pendingNextCardId !== null ? CARDS.find((c) => c.id === state.pendingNextCardId) : null;
-  const alreadyResolvingEndChain =
-    (state.pendingChainCardKey?.startsWith('_end_') ?? false) ||
-    (pendingNextTarget?.cardKey?.startsWith('_end_') ?? false) ||
-    isEndingCard(pendingNextTarget ?? ({} as CardRow));
-  if (!alreadyResolvingEndChain) {
+  //    must be shown next. Checked before the '>'/'>_X' chain-resume logic
+  //    below EXCEPT when a story chain is actively in progress (see GUARD
+  //    below) — explicit product decision: a scripted narrative sequence
+  //    (bare '>' or '>_X' in flight) must be allowed to finish even if it
+  //    momentarily drives a stat to 0/100 along the way, since several real
+  //    chains do exactly that on purpose as pure narrative beats with no
+  //    intent to end the reign there. Confirmed via simulation: the devil/
+  //    black-dog main story (#701-#710, GDD's central story) sets faith to
+  //    0 at #702 via a bare '>' to #703, army to 0 at #704, treasury to 0
+  //    at #705, etc — INTENTIONAL narrative drama, not intended deaths.
+  //    With the old unconditional check, the gatekeeper interrupted this
+  //    chain at #702, before the story ever reached its real climax (#710,
+  //    where the curse is actually set) — the whole 52-card main story was
+  //    unreachable in practice.
+  //    GUARD: if a chain is actively in flight (pendingNextCardId or
+  //    pendingChainCardKey is set — meaning the PREVIOUS card explicitly
+  //    routed us here via '>'/'>_X', not the free weighted pool), skip the
+  //    gatekeeper check entirely for this turn and let the chain continue.
+  //    This deliberately means an ending condition first reached mid-chain
+  //    is checked again once the chain naturally ends (falls through to the
+  //    normal pool) or reaches its own end> card — it is only DEFERRED by
+  //    letting the current scripted sequence play out, never silently
+  //    dropped, since applyDecision's death-independent stat clamp keeps
+  //    the extreme stat value in place until then.
+  const chainInFlight = state.pendingNextCardId !== null || state.pendingChainCardKey !== null;
+  if (!chainInFlight) {
     const statEnding = checkStatEndingGatekeepers(state);
     if (statEnding) return statEnding;
   }
@@ -452,6 +445,22 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   // old blunt stat-based death check usually ended the reign first).
   if (card.id === 819) {
     state.counters['nb_barba'] = 0;
+  }
+
+  // Card #778 (_end_dungeon group, bearer "jester", condition "dice_keep",
+  // weight="max") is explicitly framed as a ONE-TIME event in its own text
+  // ("یک بازی آخر" — "one last game"), set up by an entirely unrelated
+  // witch/science card (#512 "_magiclearn") that sets dice_keep and is
+  // never cleared by anything else in the whole dataset. Without clearing
+  // it here, #778 — carrying weight="max" with no lockturn and no other
+  // gating condition — permanently dominates every future selectNextCard()
+  // draw once dice_keep is set, regardless of whether the player answers
+  // yes (escape via a bare '>' to #779) or no (loops back into the same
+  // "_end_dungeon" group, which #778 also wins again due to its weight).
+  // Confirmed via a 300-reign regression: this alone locked ~90%+ of test
+  // reigns into permanent #778-recurrence once dice_keep was ever set.
+  if (card.id === 778) {
+    delete state.flags['dice_keep'];
   }
 
   // chain handling
