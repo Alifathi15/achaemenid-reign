@@ -93,11 +93,6 @@ export function applyCustom(state: GameState, custom: string | null | undefined)
 
     if (applyPlusMinusCounter(state, token)) continue;
 
-    if (token.endsWith('_keep')) {
-      state.flags[token] = true;
-      continue;
-    }
-
     // '!X' where X is NOT a comparison/negated-condition prefix (that
     // grammar belongs to conditionParser.ts, not here) — in the CUSTOM
     // grammar, a bare '!flag' token means "clear this flag", the inverse
@@ -111,8 +106,27 @@ export function applyCustom(state: GameState, custom: string | null | undefined)
     // conditions checking devil_visit later never saw it cleared, and any
     // future condition checking a negated custom-cleared flag would
     // silently misbehave the same way.
+    //
+    // MUST run BEFORE the "_keep" branch below, not after — confirmed as a
+    // real bug via card #138 (_end_invasion group): its "no" custom is
+    // literally "!fortification_keep". Since that token ALSO ends with
+    // "_keep", the old ordering (the "_keep" check ran first) matched it
+    // there first and set a flag literally named "!fortification_keep" to
+    // true, leaving the real "fortification_keep" flag untouched — so
+    // abandoning the fortifications never actually cleared them. Verified:
+    // once fortification_keep is set, it could NEVER be cleared by ANY
+    // card in the whole dataset (this is the only place that ever tries),
+    // permanently trivializing every future military=0 crisis for that
+    // save. Reordering fixes this without affecting the #710 case, since a
+    // plain "X_keep" token (no leading '!') still falls through to the
+    // "_keep" branch exactly as before.
     if (token.startsWith('!')) {
       delete state.flags[token.slice(1)];
+      continue;
+    }
+
+    if (token.endsWith('_keep')) {
+      state.flags[token] = true;
       continue;
     }
 
