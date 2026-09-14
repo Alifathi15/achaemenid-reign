@@ -50,10 +50,31 @@ function parseChainToken(token: string): ChainDirective | null {
   if (/^>+$/.test(token)) {
     return { kind: 'next', steps: token.length };
   }
-  const m = token.match(/^>+_?(\w+)$/);
+  // IMPORTANT: capture the target name EXACTLY as written (including whether
+  // it has a leading underscore or not) — do NOT force-add an underscore.
+  // Real card_key values in the data are a MIX of underscore-prefixed
+  // (e.g. "_duel_general", "_whois") and bare (e.g. "assasin2", "queen_quit",
+  // "battleviking_keep") groups. The raw custom token always matches its
+  // real target's exact spelling: ">_duel_general" targets card_key
+  // "_duel_general", but ">>assasin2" targets card_key "assasin2" (NO
+  // underscore) and ">queen_quit" targets card_key "queen_quit" (also no
+  // underscore). The previous version always prepended "_" when the token
+  // itself lacked one, silently rewriting ">>assasin2" into a lookup for
+  // "_assasin2" — a card_key that doesn't exist anywhere in the 883-card
+  // dataset. Confirmed as a REAL bug via simulation: card #66's "no" custom
+  // "nb_murder+ and >>assasin2" was supposed to continue the murder-coverup
+  // story into card #75 (card_key "assasin2"), but instead silently fell
+  // through to the unrelated normal card pool every time, permanently
+  // breaking that narrative branch (and 23 other cards affected the same
+  // way: >inquisition2, >>>priestunhappy, >church, >>>>terror, >>>>assasin2,
+  // >>>assasin2 (x2), >>>>deaf, >>>>pneumonia, >>>>victory_viking,
+  // >lady_intro, >>>peacetreaty, >>>>warwithsouth, >>>>lady_1, >queen_quit,
+  // >>>barbarian, >>>>>>battleviking_keep, >>>>bread1, >introfortune,
+  // >>>>>>>>>bed, >>>>>plaguestart, >>>>battleviking_keep,
+  // >>>>>startbarbare (x2), >>>>>>>revealbird, >>>>>>deathblack).
+  const m = token.match(/^>+(_?\w+)$/);
   if (m) {
-    const key = m[1].startsWith('_') ? m[1] : `_${m[1]}`;
-    return { kind: 'jump', targetKey: key };
+    return { kind: 'jump', targetKey: m[1] };
   }
   return null;
 }
