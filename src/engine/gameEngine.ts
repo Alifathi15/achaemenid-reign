@@ -34,6 +34,7 @@ export function createInitialState(): GameState {
     pendingChainCardKey: null,
     pendingChainConditionOverride: null,
     pendingDuelKey: null,
+    pendingDungeonKey: null,
     turnCount: 0,
     coins: 0,
     isDead: false,
@@ -139,6 +140,7 @@ export function createNextReignState(previous: GameState): GameState {
     pendingChainCardKey: null,
     pendingChainConditionOverride: null,
     pendingDuelKey: null,
+    pendingDungeonKey: null,
     turnCount: 0,
     coins: previous.coins,
     isDead: false,
@@ -184,6 +186,56 @@ function isEndingCard(card: CardRow): boolean {
   return !!card.bearer && card.bearer.startsWith('end>');
 }
 
+/** The 8 "gatekeeper" cards that fire the instant a stat hits 0 or 100 —
+ * confirmed from the data itself: each is the ONLY card whose condition is
+ * a bare single-term stat=0/100 comparison (spiritual=0, spiritual=100,
+ * military=0, military=100, demography=0, demography=100, treasure=0,
+ * treasure=100), each carries weight=1000000 (an order of magnitude above
+ * any normal card), and each has custom=">_end_X" jumping straight into
+ * that stat's ending-card group (e.g. #131 "paganism", spiritual=0 ->
+ * >_end_paganism -> group containing #132, an escape card gated on
+ * cathedral_keep that AVOIDS death via an inquisition, weight=max, and
+ * #133, the real bearer="end>dead_king_paganist" death card, weight=100 —
+ * so building the cathedral literally lets the player survive a
+ * spiritual=0 crisis instead of dying, which is why this can't be a blunt
+ * instant-death check). These 8 ids are fixed, verified-from-data IDs, not
+ * a runtime-computed set — listing them by id keeps the check O(1) instead
+ * of rescanning conditions text.
+ *   131 (paganism, spiritual=0), 134 (heavenonearth, spiritual=100),
+ *   137 (invasion, military=0), 141 (coup, military=100),
+ *   145 (nodemo, demography=0), 150 (nocontrol, demography=100),
+ *   158 (toorich, treasure=100), 161 (penniless, treasure=0). */
+const STAT_ENDING_GATEKEEPER_IDS = [131, 134, 137, 141, 145, 150, 158, 161];
+
+/** GDD §7 step 12: "چک کن آیا شرایطِ end> فعال شدن؟ اگه آره، این کارت‌ها
+ * اولویتِ مطلق دارن" — after every decision, before anything else
+ * (including an in-progress story chain or the normal pool), check whether
+ * any of the 8 stat-threshold gatekeepers is now eligible. If so it MUST be
+ * shown next, unconditionally — this is what makes hitting spiritual=0 (or
+ * any other stat extreme) actually surface its own specific ending
+ * narrative/escape-hatch card instead of the generic "a stat hit 0" message
+ * the old blunt instant-death check produced. Each gatekeeper's own
+ * conditions field is a single bare comparison (no extra "and" terms), so
+ * it is guaranteed eligible exactly when that stat is truly at the
+ * threshold — no risk of the priority check silently missing it. */
+function checkStatEndingGatekeepers(state: GameState): CardRow | null {
+  const eligible = STAT_ENDING_GATEKEEPER_IDS.map((id) => CARDS.find((c) => c.id === id)).filter(
+    (c): c is CardRow => !!c && cardIsEligible(state, c)
+  );
+  return pickWeighted(eligible);
+}
+
+/** Given an end> card, derives a deathReason key for DeathScreen's
+ * REASON_TEXT lookup out of the bearer's own suffix (e.g.
+ * "end>dead_king_dogs" -> "story_dead_king_dogs") — distinct from the 8
+ * generic stat-threshold reasons (faith_zero etc) so the death screen can
+ * show narrative-specific text instead of falling back to the generic
+ * "سلطنتِ او در سکوتِ تاریخ به پایان رسید." for every story-driven ending. */
+export function endingCardDeathReason(card: CardRow): string {
+  const suffix = (card.bearer ?? '').slice('end>'.length);
+  return `story_${suffix}`;
+}
+
 /** Resolves a card's `weight` cell to a finite number for weighted-random
  * selection. Per Engine Spec §2, extreme numeric weights (1e7, 1e4) mean
  * "pick this almost certainly if eligible" — the literal string "max" (36
@@ -215,10 +267,50 @@ function pickWeighted(cards: CardRow[]): CardRow | null {
 }
 
 export function selectNextCard(state: GameState): CardRow | null {
-  // 0. a duel is pending: the UI must render the Duel mini-game, not a card.
-  //    (App.tsx checks state.pendingDuelKey before calling this, but guard
-  //    here too so selectNextCard never accidentally skips past a duel.)
+  // 0. a duel or dungeon mini-game is pending: the UI must render that
+  //    screen, not a card. (App.tsx checks these before calling this, but
+  //    guard here too so selectNextCard never accidentally skips past one.)
   if (state.pendingDuelKey) return null;
+  if (state.pendingDungeonKey) return null;
+
+  // 0.5. GDD §7 step 12 — ABSOLUTE priority: if any stat is currently at its
+  //    0/100 threshold, its gatekeeper card (see STAT_ENDING_GATEKEEPER_IDS)
+  //    must be shown next, interrupting even an in-progress story chain.
+  //    Checked before the '>'/'>_X' chain-resume logic below on purpose:
+  //    a stat hitting an extreme is meant to override whatever story was
+  //    in progress, not wait for it to finish. Note this DOES abandon
+  //    whatever pendingNextCardId/pendingChainCardKey was in flight (the
+  //    gatekeeper's own custom, e.g. ">_end_paganism", overwrites it in
+  //    applyDecision right after) — acceptable because a stat genuinely
+  //    hitting 0/100 is a crisis that should take precedence over any
+  //    unrelated story thread, not silently wait behind it.
+  //    GUARD: skip this check while we're already mid-resolution of a
+  //    pending jump into one of these gatekeepers' own '_end_X' chain group.
+  //    Must check what pendingNextCardId ACTUALLY POINTS TO here, not just
+  //    "is it set" — confirmed by a real bug this exact guard used to have:
+  //    card #778 (_end_dungeon group, the dice-game escape check) sets
+  //    stats to 0 via its "yes" AND chains via a plain '>' to #779 (an
+  //    unrelated card, cardKey "_", a court celebration with no connection
+  //    to any ending). A blanket "pendingNextCardId !== null" guard wrongly
+  //    treated that as "mid end> resolution" and skipped the gatekeeper
+  //    check entirely — so the reign never actually reached its ending;
+  //    #779 restored all 4 stats back to 50 with its own delta, and the
+  //    #778<->#779 pair looped forever (confirmed via simulation: this
+  //    pattern alone locked ~90% of test reigns into an infinite loop).
+  //    The real distinguishing test is whether the TARGET card of that bare
+  //    '>' is itself part of an "_end_" chain group (or its own end> death
+  //    card) — #779 is not, so the guard must NOT suppress the gatekeeper
+  //    check just because *some* pendingNextCardId happens to be set.
+  const pendingNextTarget =
+    state.pendingNextCardId !== null ? CARDS.find((c) => c.id === state.pendingNextCardId) : null;
+  const alreadyResolvingEndChain =
+    (state.pendingChainCardKey?.startsWith('_end_') ?? false) ||
+    (pendingNextTarget?.cardKey?.startsWith('_end_') ?? false) ||
+    isEndingCard(pendingNextTarget ?? ({} as CardRow));
+  if (!alreadyResolvingEndChain) {
+    const statEnding = checkStatEndingGatekeepers(state);
+    if (statEnding) return statEnding;
+  }
 
   // 1. bare '>' directive: go to the card at id+steps IF it's currently
   //    eligible (conditions/bearer/lockturn) — otherwise the chain is
@@ -301,10 +393,46 @@ export function getUnlockedObjectiveNames(): string[] {
 }
 
 export function applyDecision(state: GameState, card: CardRow, decision: 'yes' | 'no'): TurnResult {
+  // If the card being resolved IS an ending card itself (reached via an
+  // explicit chain jump, e.g. losing a duel -> #379 end>dead_king_duel),
+  // the reign ends immediately on this decision — these cards' own
+  // yes/no stat-deltas and custom are all empty by design (confirmed: none
+  // of the 42 end> cards have any override_yes/answer_yes/custom content),
+  // so there is nothing to "apply" beyond ending the reign with this card's
+  // own narrative. Previously this case fell through to the normal turn
+  // logic, which showed the death narrative as if it were an ordinary
+  // yes/no question, then just continued the game waiting for an unrelated
+  // stat to eventually hit 0 — the reign never actually ended here.
+  if (isEndingCard(card)) {
+    state.isDead = true;
+    state.deathReason = endingCardDeathReason(card);
+    return { card, decision, died: true, deathReason: state.deathReason, unlockedObjectives: [] };
+  }
+
   const delta = decision === 'yes' ? card.yes : card.no;
   applyStatDelta(state, delta);
 
   const customResult = applyCustom(state, delta.custom);
+
+  // Card #819 (_barbatalk, conditions "nb_barba>5", weight="max") is the
+  // ONE-TIME climax of the barbarian-negotiation mini-chain (#807-#818):
+  // nb_barba is a pure counter (never read by any OTHER card's conditions —
+  // confirmed: #819 is its only reader in the whole 883-card data) that
+  // those setup cards increment toward >5, then #819 is meant to resolve
+  // the whole thread once (peace via "yes" or war via "no", both just
+  // chain onward with a bare '>'). Nothing in the data ever decrements or
+  // clears nb_barba after #819 fires, so without this reset the counter
+  // permanently stays >5 and #819 — carrying weight="max", an order of
+  // magnitude above any normal card — instantly wins every future
+  // selectNextCard() draw again on the very next turn, hard-locking the
+  // whole card pool into an infinite #819->#820->#821 loop (confirmed via
+  // a 300-reign regression: this was NOT introduced by the end> priority
+  // system work — the exact same lock reproduces against the pre-end>-fix
+  // code too, it just never had enough turns to surface before because the
+  // old blunt stat-based death check usually ended the reign first).
+  if (card.id === 819) {
+    state.counters['nb_barba'] = 0;
+  }
 
   // chain handling
   if (customResult.chain) {
@@ -321,9 +449,18 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
       if (customResult.chain.targetKey.startsWith('_duel_')) {
         state.pendingDuelKey = customResult.chain.targetKey;
         state.pendingChainCardKey = null;
+        state.pendingDungeonKey = null;
+      } else if (customResult.chain.targetKey === '_dungeon1') {
+        // Real dungeon maze entry point (see types.ts's pendingDungeonKey
+        // doc comment) — simplified to a single win/lose screen instead of
+        // the full 48-card hand-authored maze.
+        state.pendingDungeonKey = customResult.chain.targetKey;
+        state.pendingChainCardKey = null;
+        state.pendingDuelKey = null;
       } else {
         state.pendingChainCardKey = customResult.chain.targetKey;
         state.pendingDuelKey = null;
+        state.pendingDungeonKey = null;
       }
       state.pendingNextCardId = null;
     } else if (customResult.chain.kind === 'next') {
@@ -335,11 +472,13 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
       state.pendingNextCardId = card.id + (customResult.chain.steps ?? 1);
       state.pendingChainCardKey = null;
       state.pendingDuelKey = null;
+      state.pendingDungeonKey = null;
     }
   } else {
     state.pendingChainCardKey = null;
     state.pendingNextCardId = null;
     state.pendingDuelKey = null;
+    state.pendingDungeonKey = null;
   }
 
   // lockturn bookkeeping. Three forms appear in the data:
@@ -366,21 +505,19 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   }
   state.turnCount += 1;
 
-  // death check: any stat hits 0 or 100
+  // death check: previously this fired the instant a stat crossed 0/100,
+  // ending the reign with no narrative before the player ever saw why.
+  // Per GDD §7 step 12, hitting a stat extreme must instead surface that
+  // stat's own gatekeeper card (STAT_ENDING_GATEKEEPER_IDS, checked with
+  // absolute priority at the top of selectNextCard) — the reign only
+  // actually ends once play reaches a real bearer="end>..." card (handled
+  // by the isEndingCard branch at the top of this function). So this
+  // function must NOT set died=true here anymore; it only needs to leave
+  // the stat itself at its extreme value (already done by applyStatDelta's
+  // clamp to [0,100]) so the gatekeeper's own condition (e.g. spiritual=0)
+  // evaluates true on the very next selectNextCard() call.
   let died = false;
   let deathReason: string | null = null;
-  for (const key of STAT_KEYS) {
-    if (state.stats[key] <= 0) {
-      died = true;
-      deathReason = `${key}_zero`;
-      break;
-    }
-    if (state.stats[key] >= 100) {
-      died = true;
-      deathReason = `${key}_max`;
-      break;
-    }
-  }
   state.isDead = died;
   state.deathReason = deathReason;
 
@@ -428,6 +565,7 @@ export interface SerializedGameState {
   pendingNextCardId: number | null;
   pendingChainCardKey: string | null;
   pendingDuelKey: string | null;
+  pendingDungeonKey: string | null;
   turnCount: number;
   coins: number;
   isDead: boolean;
@@ -447,6 +585,7 @@ export function serializeGameState(state: GameState): SerializedGameState {
     pendingNextCardId: state.pendingNextCardId,
     pendingChainCardKey: state.pendingChainCardKey,
     pendingDuelKey: state.pendingDuelKey,
+    pendingDungeonKey: state.pendingDungeonKey,
     turnCount: state.turnCount,
     coins: state.coins,
     isDead: state.isDead,
@@ -469,11 +608,34 @@ export function deserializeGameState(saved: SerializedGameState): GameState {
     pendingChainCardKey: saved.pendingChainCardKey,
     pendingChainConditionOverride: null,
     pendingDuelKey: saved.pendingDuelKey,
+    pendingDungeonKey: saved.pendingDungeonKey ?? null,
     turnCount: saved.turnCount,
     coins: saved.coins,
     isDead: saved.isDead,
     deathReason: saved.deathReason,
   };
+}
+
+/** Called when the simplified Dungeon mini-game screen (see types.ts's
+ * pendingDungeonKey doc comment) finishes. On a win: applies the same
+ * +30/+30/+30/+30 reward as the real maze's successful-exit card (#640) and
+ * clears intheDungeon so the player can re-enter the dungeon story later.
+ * On a loss: routes straight into the real end> card (#663,
+ * end>dead_king_rat) via pendingNextCardId so the reign ends with its
+ * correct authored death narrative instead of a generic message. */
+export function resolveDungeonOutcome(state: GameState, kingWon: boolean) {
+  state.pendingDungeonKey = null;
+  if (kingWon) {
+    for (const key of STAT_KEYS) {
+      state.stats[key] = Math.max(0, Math.min(100, state.stats[key] + 30));
+    }
+    delete state.flags['intheDungeon'];
+    state.pendingNextCardId = null;
+    state.pendingChainCardKey = null;
+  } else {
+    state.pendingNextCardId = 663; // end>dead_king_rat — the maze's own real death outcome
+    state.pendingChainCardKey = null;
+  }
 }
 
 /** Called once a Duel mini-game finishes. Sets `duel_won` per the RE'd

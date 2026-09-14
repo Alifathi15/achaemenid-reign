@@ -13,6 +13,7 @@ import {
   selectNextCard,
   applyDecision,
   resolveDuelOutcome,
+  resolveDungeonOutcome,
   loadUnlockedObjectives,
   getUnlockedObjectiveNames,
   serializeGameState,
@@ -31,11 +32,12 @@ import {
   type PlayerProfile,
 } from './db/db';
 import { DuelScreen } from './screens/DuelScreen';
+import { DungeonScreen } from './screens/DungeonScreen';
 import bearersData from './data/bearers.json';
 
 const BEARERS = bearersData as { key: string; role: string; persianName: string }[];
 
-type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'death' | 'progress' | 'shop' | 'settings';
+type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings';
 
 const KING_NAMES = ['داریوش', 'خشایارشا', 'کوروش', 'اردشیر', 'کمبوجیه', 'وشتاسپ'];
 
@@ -94,7 +96,7 @@ export default function App() {
    * closing the app mid-reign safe: reopening resumes from exactly this
    * point, including mid-chain/mid-duel, rather than losing the reign. */
   const persistLiveReign = useCallback(
-    (nextState: GameState, nextCard: CardRow | null, nextDecisionsCount: number, nextScreen: 'game' | 'duel') => {
+    (nextState: GameState, nextCard: CardRow | null, nextDecisionsCount: number, nextScreen: 'game' | 'duel' | 'dungeon') => {
       void saveLiveReign({
         gameState: serializeGameState(nextState),
         currentCardId: nextCard?.id ?? null,
@@ -117,6 +119,8 @@ export default function App() {
         setDecisionsCount(rec.decisionsCount);
         if (rec.screen === 'duel' && restoredState.pendingDuelKey) {
           setScreen('duel');
+        } else if (rec.screen === 'dungeon' && restoredState.pendingDungeonKey) {
+          setScreen('dungeon');
         } else {
           const card = rec.currentCardId ? CARDS.find((c) => c.id === rec.currentCardId) ?? null : null;
           setCurrentCard(card);
@@ -167,6 +171,11 @@ export default function App() {
     if (state.pendingDuelKey) {
       persistLiveReign(state, null, decisionsCount, 'duel');
       setScreen('duel');
+      return;
+    }
+    if (state.pendingDungeonKey) {
+      persistLiveReign(state, null, decisionsCount, 'dungeon');
+      setScreen('dungeon');
       return;
     }
     const next = selectNextCard(state);
@@ -234,6 +243,12 @@ export default function App() {
       return;
     }
 
+    if (state.pendingDungeonKey) {
+      persistLiveReign(state, currentCard, nextDecisionsCount, 'dungeon');
+      setScreen('dungeon');
+      return;
+    }
+
     const next = selectNextCard(state);
     setCurrentCard(next);
     persistLiveReign(state, next, nextDecisionsCount, 'game');
@@ -241,6 +256,15 @@ export default function App() {
 
   function handleDuelFinished(kingWon: boolean) {
     resolveDuelOutcome(state, kingWon);
+    setState({ ...state });
+    const next = selectNextCard(state);
+    setCurrentCard(next);
+    persistLiveReign(state, next, decisionsCount, 'game');
+    setScreen('game');
+  }
+
+  function handleDungeonFinished(kingWon: boolean) {
+    resolveDungeonOutcome(state, kingWon);
     setState({ ...state });
     const next = selectNextCard(state);
     setCurrentCard(next);
@@ -323,6 +347,13 @@ export default function App() {
             BEARERS.find((b) => state.pendingDuelKey?.includes(b.key))?.persianName ?? 'حریف'
           }
           onFinished={handleDuelFinished}
+        />
+      )}
+
+      {screen === 'dungeon' && state.pendingDungeonKey && (
+        <DungeonScreen
+          kingName={KING_NAMES[state.dynasty % KING_NAMES.length]}
+          onFinished={handleDungeonFinished}
         />
       )}
 

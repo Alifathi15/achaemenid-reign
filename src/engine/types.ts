@@ -89,6 +89,22 @@ export interface GameState {
    * set), so duel-conditioned cards always silently took the "lost" branch
    * and the player never actually got to fight. */
   pendingDuelKey: string | null;
+  /** Set when a chain jump target is the dungeon mini-game's entry group
+   * (card_key "_dungeon1", e.g. reached via #607 "enterthedonjon"'s
+   * yes_custom ">_dungeon1 and intheDungeon and !spice_trade_keep"). The
+   * REAL dungeon content is a 48-card hand-authored maze (torch/key/trap/
+   * treasure/excalibur/devil-encounter sub-chains) that is out of scope to
+   * fully implement right now — per explicit product decision, this is
+   * simplified to a single win/lose choice screen (DungeonScreen) instead
+   * of the full maze, mirroring how pendingDuelKey short-circuits the
+   * equally complex real duel content. Win -> same +30/+30/+30/+30 reward
+   * as the real maze's successful-exit card (#640 "_exit_open", dungeon>
+   * open_exit), clears intheDungeon, returns to the normal pool. Lose ->
+   * jumps straight to the real end> card #663 "end>dead_king_rat" (the
+   * maze's own actual death outcome, e.g. reached via #661/#662's
+   * ">_end_dungeon" chain after a lethal trap), so the reign still ends
+   * with its correct authored narrative instead of a generic message. */
+  pendingDungeonKey: string | null;
   turnCount: number;
   coins: number;
   isDead: boolean;

@@ -32,6 +32,17 @@ function getVariableValue(state: GameState, name: string): number {
     case 'treasury':
     case 'treasure':
       return state.stats.treasury;
+    // INFERRED, not confirmed from any spec/RE source: "overall" appears in
+    // 4 card conditions (e.g. #152 end>dead_king_classic "overall>40", #163
+    // end>dead_king_dogs "overall<30") with no definition anywhere in the
+    // GDD, engine spec, or decompiled code. Interpreted as the simple mean
+    // of the 4 core stats (0-100 scale, consistent with every other stat
+    // comparison in the data) — the only reading that keeps these cards'
+    // thresholds in the same 0-100 range as every other numeric condition
+    // in the file. Flagged here as an inference so it's easy to find and
+    // correct if a more authoritative source ever surfaces.
+    case 'overall':
+      return (state.stats.faith + state.stats.army + state.stats.people + state.stats.treasury) / 4;
     default:
       if (name.startsWith('has_')) {
         const bearer = name.slice(4);

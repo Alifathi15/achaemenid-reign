@@ -34,7 +34,7 @@ export interface LiveReignRecord {
   gameState: SerializedGameState;
   currentCardId: number | null;
   decisionsCount: number;
-  screen: 'game' | 'duel';
+  screen: 'game' | 'duel' | 'dungeon';
 }
 
 export interface ReignRecord {
