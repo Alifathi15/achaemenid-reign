@@ -30,23 +30,54 @@
 html, body, #root {
   height: 100%;
   margin: 0;
+  /* Prevent the browser's pull-to-refresh / overscroll bounce and rubber-
+     banding on real phones from ever revealing the page background behind
+     the app-shell — keeps the illusion of a native fullscreen app. */
+  overscroll-behavior: none;
 }
 
 body {
   font-family: 'Vazirmatn', Tahoma, sans-serif;
   background: #111;
   direction: rtl;
+  /* Belt-and-suspenders against accidental pinch-zoom/double-tap-zoom on
+     phones even though the viewport meta tag already disables it. */
+  touch-action: pan-y;
 }
 
 .app-shell {
   max-width: 430px;
+  /* 100vh on real mobile browsers is the LARGEST possible viewport (as if
+     the address bar were hidden), so the shell would render taller than
+     the actually-visible area and its bottom nav/buttons get cut off
+     behind the browser chrome. 100dvh ("dynamic viewport height") tracks
+     the real visible height as the address bar shows/hides; svh/lvh are
+     included as a min/max fallback pair for browsers with partial dvh
+     support (older Safari/Chrome on Android). */
   height: 100vh;
+  height: 100svh;
+  height: 100dvh;
   margin: 0 auto;
   background: var(--sandstone);
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Respect notches/home-indicator/status-bar safe areas (iPhone etc) so
+     the top bar and bottom nav are never drawn under them. viewport-fit=
+     cover in index.html is required for these env() values to be non-zero. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Below 430px width (i.e. an actual phone, not a desktop browser window),
+   drop the centered-card look entirely: the shell fills the true full
+   width of the device so there's no dead margin on either side, exactly
+   matching what a native phone app would look like. */
+@media (max-width: 430px) {
+  .app-shell {
+    max-width: 100%;
+  }
 }
 
 .btn {
