@@ -327,22 +327,82 @@ function isDuelMoveFlavorCard(card: CardRow): boolean {
  * condition, e.g. `afterwedding`'s #366 `has_queen` vs #367 `age=25` — two
  * unrelated stories that happen to share a card_key, not a sequential
  * chain) or already covered by isDuelMoveFlavorCard. */
-const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
-  const groups = new Map<string, CardRow[]>();
+/** Ids that are the legitimate lowest-id "entry" member of a real >=2-member
+ * cardKey group — these ARE safe to draw cold from the free pool (that's
+ * how the group's story begins in the first place). Cards with `cardKey`
+ * `null`/`"_"` or a unique key (no sibling) have no such "group", so they
+ * are never entries here — they're covered individually below instead. */
+const CHAIN_GROUP_ENTRY_IDS: ReadonlySet<number> = (() => {
+  const byKey = new Map<string, CardRow[]>();
   for (const c of CARDS) {
     if (!c.cardKey || c.cardKey === '_') continue;
-    const arr = groups.get(c.cardKey);
+    const arr = byKey.get(c.cardKey);
     if (arr) arr.push(c);
-    else groups.set(c.cardKey, [c]);
+    else byKey.set(c.cardKey, [c]);
   }
+  const entries = new Set<number>();
+  for (const grp of byKey.values()) {
+    if (grp.length < 2) continue;
+    const entry = grp.reduce((a, b) => (a.id < b.id ? a : b));
+    entries.add(entry.id);
+  }
+  return entries;
+})();
+
+/** Ids that must NOT be drawn cold from the free pool because they only
+ * make narrative sense as the continuation of a story the player has
+ * already started, reachable via an explicit `>`/`>_X` jump from elsewhere.
+ *
+ * v1 of this exclusion (see prior comment/commit history) only considered
+ * cards that shared a real (non-"_", non-unique) `cardKey` with at least
+ * one other card: for each such group, IF anything outside the group jumps
+ * into it (named `>_key` targeting the group, or a bare `>` landing on any
+ * member's id), every non-entry member with `conditions: null` is excluded.
+ * That mechanism is still correct and kept as-is below (case A) — it's how
+ * e.g. `_party`'s #836-839 stay reachable only via the chain, not the pool.
+ *
+ * What v1 missed, confirmed via a user-provided play log showing card #497
+ * (no real cardKey, "سرانجام پیشنهاد سازشی می‌دهم...") drawn cold on turn 6
+ * with zero setup, mid-story:
+ *   1. 194 cards use the placeholder `cardKey: "_"`, meaning "no real chain
+ *      identity" — NOT "belongs to one shared 194-member group". Each is
+ *      either fully standalone, or a bare-arrow jump target from ONE
+ *      specific other card, with no relation to the other 193 at all. v1's
+ *      grouping code explicitly skipped `cardKey === '_'` for THIS reason
+ *      (so it never wrongly merged them into a fake group), but that also
+ *      meant it never checked them individually as bare-arrow targets.
+ *   2. Cards with a real, UNIQUE cardKey (no sibling) were never considered
+ *      at all, because v1 required `grp.length >= 2` — but a bare-arrow or
+ *      named jump can land on a single-member "group" just as easily (e.g.
+ *      #681 `_priestcow`, the sole card with that key, is a real jump
+ *      target from #680's `add_witch and >>>>_witchcow` step... — this
+ *      needed a general "is this id a confirmed jump target" check, not a
+ *      groups-of-2+ check, to catch it).
+ *
+ * Case B below adds that general check for exactly these two gaps: any
+ * card NOT already covered by case A that is a confirmed jump target
+ * (named-key or bare-arrow, from anywhere in the dataset) and has
+ * `conditions: null` is excluded too, unless it's itself a legitimate
+ * multi-member group's entry card. */
+const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
+  const byKey = new Map<string, CardRow[]>();
+  for (const c of CARDS) {
+    if (!c.cardKey || c.cardKey === '_') continue;
+    const arr = byKey.get(c.cardKey);
+    if (arr) arr.push(c);
+    else byKey.set(c.cardKey, [c]);
+  }
+
   const orphanIds = new Set<number>();
-  for (const [key, grp] of groups) {
+
+  // --- Case A: non-entry members of a real >=2-member cardKey group,
+  // when something external jumps into that group (original v1 logic). ---
+  for (const [key, grp] of byKey) {
     if (grp.length < 2) continue;
     if (key.startsWith('_duelmove')) continue; // already handled by isDuelMoveFlavorCard
     const sorted = [...grp].sort((a, b) => a.id - b.id);
     const entryId = sorted[0].id;
     const memberIds = new Set(sorted.map((c) => c.id));
-    // does anything OUTSIDE this group explicitly jump into it?
     let hasExternalEntry = false;
     for (const c of CARDS) {
       if (memberIds.has(c.id)) continue;
@@ -369,6 +429,40 @@ const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
       orphanIds.add(c.id);
     }
   }
+
+  // --- Case B: any OTHER card (cardKey "_" or a real-but-unique key) that
+  // is itself a confirmed jump target (named or bare-arrow) from anywhere
+  // in the dataset, and has no condition of its own. ---
+  for (const c of CARDS) {
+    if (orphanIds.has(c.id)) continue;
+    if (c.cardKey && c.cardKey !== '_' && (byKey.get(c.cardKey)?.length ?? 0) >= 2) continue; // handled by case A
+    if (c.cardKey?.startsWith('_duelmove')) continue;
+    if (c.conditions) continue;
+    let isJumpTarget = false;
+    for (const other of CARDS) {
+      if (other.id === c.id) continue;
+      for (const side of [other.yes, other.no]) {
+        const custom = side?.custom;
+        if (!custom) continue;
+        for (const rawToken of custom.split(/\s+and\s+/i)) {
+          const t = rawToken.trim();
+          if (c.cardKey && c.cardKey !== '_') {
+            const namedJump = t.match(/^>+_?(\w+)$/);
+            if (namedJump && ('_' + namedJump[1] === c.cardKey || namedJump[1] === c.cardKey)) {
+              isJumpTarget = true;
+            }
+          }
+          const bareArrow = t.match(/^(>+)$/);
+          if (bareArrow && other.id + bareArrow[1].length === c.id) {
+            isJumpTarget = true;
+          }
+        }
+      }
+      if (isJumpTarget) break;
+    }
+    if (isJumpTarget) orphanIds.add(c.id);
+  }
+
   return orphanIds;
 })();
 
