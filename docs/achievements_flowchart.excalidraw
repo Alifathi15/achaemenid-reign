@@ -1,0 +1,1084 @@
+{
+ "type": "excalidraw",
+ "version": 2,
+ "source": "hermes-agent",
+ "elements": [
+  {
+   "type": "rectangle",
+   "id": "r1",
+   "x": 1300,
+   "y": 40,
+   "width": 400,
+   "height": 90,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#e9ecef",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t2",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t2",
+   "x": 1310,
+   "y": 50,
+   "width": 380,
+   "height": 70,
+   "text": "دستاوردها\n۴۵ هدف کل",
+   "fontSize": 24,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r1",
+   "originalText": "دستاوردها\n۴۵ هدف کل",
+   "autoResize": true
+  },
+  {
+   "type": "rectangle",
+   "id": "r3",
+   "x": 50.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#a5d8ff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t4",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t4",
+   "x": 60.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "سن و بقا (۸)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r3",
+   "originalText": "سن و بقا (۸)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a5",
+   "x": 1500.0,
+   "y": 130,
+   "width": -1260.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     -1260.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r3",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r6",
+   "x": 50.0,
+   "y": 310,
+   "width": 380,
+   "height": 280,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t7",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t7",
+   "x": 60.0,
+   "y": 320,
+   "width": 360,
+   "height": 260,
+   "text": "• تازه‌کار\n• میانسال\n• زبده\n• گرگِ بارون‌دیده\n• سالخورده\n• زیرخاکی\n• جاودان\n• هزاره",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r6",
+   "originalText": "• تازه‌کار\n• میانسال\n• زبده\n• گرگِ بارون‌دیده\n• سالخورده\n• زیرخاکی\n• جاودان\n• هزاره",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a8",
+   "x": 240.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r3",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r6",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r9",
+   "x": 470.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffc9c9",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t10",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t10",
+   "x": 480.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "دوئل و جنگ (۵)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r9",
+   "originalText": "دوئل و جنگ (۵)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a11",
+   "x": 1500.0,
+   "y": 130,
+   "width": -840.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     -840.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r9",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r12",
+   "x": 470.0,
+   "y": 310,
+   "width": 380,
+   "height": 190,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t13",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t13",
+   "x": 480.0,
+   "y": 320,
+   "width": 360,
+   "height": 170,
+   "text": "• یکه‌بزن\n• جنگاور\n• صلح‌طلب\n• مبارز\n• نترس",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r12",
+   "originalText": "• یکه‌بزن\n• جنگاور\n• صلح‌طلب\n• مبارز\n• نترس",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a14",
+   "x": 660.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r9",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r12",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r15",
+   "x": 890.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#d0bfff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t16",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t16",
+   "x": 900.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "اعضای دربار (۷)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r15",
+   "originalText": "اعضای دربار (۷)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a17",
+   "x": 1500.0,
+   "y": 130,
+   "width": -420.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     -420.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r15",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r18",
+   "x": 890.0,
+   "y": 310,
+   "width": 380,
+   "height": 250,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t19",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t19",
+   "x": 900.0,
+   "y": 320,
+   "width": 360,
+   "height": 230,
+   "text": "• شرور\n• حامی هنر\n• کولی\n• عقل‌کل\n• ساحره\n• بابا\n• مجوس",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r18",
+   "originalText": "• شرور\n• حامی هنر\n• کولی\n• عقل‌کل\n• ساحره\n• بابا\n• مجوس",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a20",
+   "x": 1080.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r15",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r18",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r21",
+   "x": 1310.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffd8a8",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t22",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t22",
+   "x": 1320.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "عشق و روابط (۳)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r21",
+   "originalText": "عشق و روابط (۳)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a23",
+   "x": 1500.0,
+   "y": 130,
+   "width": 0.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r21",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r24",
+   "x": 1310.0,
+   "y": 310,
+   "width": 380,
+   "height": 130,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t25",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t25",
+   "x": 1320.0,
+   "y": 320,
+   "width": 360,
+   "height": 110,
+   "text": "• عاشق‌پیشه\n• دلداده\n• ترحمٔ آخر",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r24",
+   "originalText": "• عاشق‌پیشه\n• دلداده\n• ترحمٔ آخر",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a26",
+   "x": 1500.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r21",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r24",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r27",
+   "x": 1730.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#fff3bf",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t28",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t28",
+   "x": 1740.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "مذهب (۴)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r27",
+   "originalText": "مذهب (۴)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a29",
+   "x": 1500.0,
+   "y": 130,
+   "width": 420.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     420.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r27",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r30",
+   "x": 1730.0,
+   "y": 310,
+   "width": 380,
+   "height": 160,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t31",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t31",
+   "x": 1740.0,
+   "y": 320,
+   "width": 360,
+   "height": 140,
+   "text": "• آتشکده‌ی بزرگ\n• بت‌ساز\n• شکافِ دینی\n• نفرین‌زده",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r30",
+   "originalText": "• آتشکده‌ی بزرگ\n• بت‌ساز\n• شکافِ دینی\n• نفرین‌زده",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a32",
+   "x": 1920.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r27",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r30",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r33",
+   "x": 2150.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#c3fae8",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t34",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t34",
+   "x": 2160.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "سیاست و توطئه (۴)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r33",
+   "originalText": "سیاست و توطئه (۴)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a35",
+   "x": 1500.0,
+   "y": 130,
+   "width": 840.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     840.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r33",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r36",
+   "x": 2150.0,
+   "y": 310,
+   "width": 380,
+   "height": 160,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t37",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t37",
+   "x": 2160.0,
+   "y": 320,
+   "width": 360,
+   "height": 140,
+   "text": "• فریب‌خورده\n• بدگمان\n• زیرک\n• پول‌پرست",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r36",
+   "originalText": "• فریب‌خورده\n• بدگمان\n• زیرک\n• پول‌پرست",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a38",
+   "x": 2340.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r33",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r36",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r39",
+   "x": 2570.0,
+   "y": 220,
+   "width": 380,
+   "height": 70,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#b2f2bb",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t40",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t40",
+   "x": 2580.0,
+   "y": 230,
+   "width": 360,
+   "height": 50,
+   "text": "رویدادهای ویژه (۱۴)",
+   "fontSize": 22,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r39",
+   "originalText": "رویدادهای ویژه (۱۴)",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a41",
+   "x": 1500.0,
+   "y": 130,
+   "width": 1260.0,
+   "height": 90,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     1260.0,
+     90
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#495057",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r1",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r39",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  },
+  {
+   "type": "rectangle",
+   "id": "r42",
+   "x": 2570.0,
+   "y": 310,
+   "width": 380,
+   "height": 460,
+   "roundness": {
+    "type": 3
+   },
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeColor": "#1e1e1e",
+   "strokeWidth": 2,
+   "boundElements": [
+    {
+     "id": "t43",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "id": "t43",
+   "x": 2580.0,
+   "y": 320,
+   "width": 360,
+   "height": 440,
+   "text": "• قارچ آبی\n• رکب‌خورده\n• گم‌گشته\n• قمارباز\n• عدالت\n• فاتحِ سرزمین\n• کلاه‌دار\n• میرزا\n• غیب‌گو\n• سرود حماسی\n• دیپلماسی\n• فیل\n• جشنِ آشفته\n• خیر یا شر",
+   "fontSize": 17,
+   "fontFamily": 2,
+   "strokeColor": "#1e1e1e",
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "containerId": "r42",
+   "originalText": "• قارچ آبی\n• رکب‌خورده\n• گم‌گشته\n• قمارباز\n• عدالت\n• فاتحِ سرزمین\n• کلاه‌دار\n• میرزا\n• غیب‌گو\n• سرود حماسی\n• دیپلماسی\n• فیل\n• جشنِ آشفته\n• خیر یا شر",
+   "autoResize": true
+  },
+  {
+   "type": "arrow",
+   "id": "a44",
+   "x": 2760.0,
+   "y": 290,
+   "width": 0.0,
+   "height": 20,
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.0,
+     20
+    ]
+   ],
+   "endArrowhead": "arrow",
+   "strokeColor": "#adb5bd",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "startBinding": {
+    "elementId": "r39",
+    "fixedPoint": [
+     0.5,
+     1
+    ]
+   },
+   "endBinding": {
+    "elementId": "r42",
+    "fixedPoint": [
+     0.5,
+     0
+    ]
+   }
+  }
+ ],
+ "appState": {
+  "viewBackgroundColor": "#ffffff"
+ }
+}
