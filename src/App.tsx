@@ -7,6 +7,7 @@ import { DeathScreen } from './screens/DeathScreen';
 import { ProgressSummaryScreen } from './screens/ProgressSummaryScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { AchievementsScreen } from './screens/AchievementsScreen';
 import {
   createInitialState,
   createNextReignState,
@@ -37,7 +38,7 @@ import bearersData from './data/bearers.json';
 
 const BEARERS = bearersData as { key: string; role: string; persianName: string }[];
 
-type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings';
+type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings' | 'achievements';
 
 const KING_NAMES = ['داریوش', 'خشایارشا', 'کوروش', 'اردشیر', 'کمبوجیه', 'وشتاسپ'];
 
@@ -319,7 +320,7 @@ export default function App() {
           onStart={handleStart}
           onOpenShop={() => setScreen('shop')}
           onOpenSettings={() => setScreen('settings')}
-          onOpenDynastyHistory={() => setScreen('settings')}
+          onOpenDynastyHistory={() => setScreen('achievements')}
           hasSavedReign={hasSavedReign}
         />
       )}
@@ -394,6 +395,13 @@ export default function App() {
           onToggleMusic={handleToggleMusic}
           onBack={() => setScreen('home')}
           onResetToFirstCard={handleResetToFirstCard}
+        />
+      )}
+
+      {screen === 'achievements' && profile && (
+        <AchievementsScreen
+          unlockedAchievements={profile.unlockedAchievements}
+          onBack={() => setScreen('home')}
         />
       )}
     </div>
