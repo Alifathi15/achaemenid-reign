@@ -376,6 +376,78 @@ function isMidChainOrphanCard(card: CardRow): boolean {
   return MID_CHAIN_ORPHAN_IDS.has(card.id);
 }
 
+/** Cards that must NOT be drawn until their bearer has actually joined the
+ * court, even though `bearer` presence is (correctly, per the note on
+ * cardIsEligible above) not a general eligibility gate. This is a NARROW,
+ * data-confirmed exception for a specific class of content: a character
+ * who is optional (not in the default activeBearers roster) has ONE real
+ * "recruitment" card — confirmed by the pattern `conditions: "!has_X ..."`
+ * WITH `custom: "add_X"` on some side of that exact card — and every OTHER
+ * card carrying that same bearer with `conditions: null` (no gate of its
+ * own) implicitly assumes the character is already in the court.
+ *
+ * Confirmed as a REAL bug via the card-draw log the user hand-verified:
+ * card #508 (`_magiclearn`, bearer "witch", `conditions: null`,
+ * `weight: "max"`) opens with "شما را به گوشه‌ی تاریک باغ می‌برم" ("I'll
+ * take you to the dark corner of the garden") — dialogue that presumes an
+ * existing relationship with the witch — yet it was drawn on turn 5 of a
+ * fresh reign, before card #482/#483 (the witch's actual recruitment) had
+ * ever appeared. `weight: "max"` made this near-guaranteed whenever
+ * eligible. A systematic re-scan found 29 more cards with this exact
+ * shape across 12 other optional bearers (prophet, queen, parker,
+ * foreign_princess, minstrel, rival, doctor, spy, homunculus, black_bird —
+ * e.g. #57 "شبکه‌ای دائمی از خبرچینان..." assumes a spy network already
+ * exists, #380 the queen's death card, #416 the queen wanting a bigger
+ * role, all reachable cold with zero prior court-building).
+ *
+ * Scope kept deliberately narrow to avoid the mistake the original
+ * bearer-gate removal was fixing (permanently dead content for bearers
+ * with no real recruitment mechanic): ONLY bearers with a confirmed
+ * `!has_X` + `add_X` recruitment card are covered here, and general/
+ * merchant/priest/farmer/monk/ghost/anyone (already default-active per
+ * createInitialState, or with no single canonical recruitment card) are
+ * excluded — general and merchant DO have `add_general`/`add_merchant`
+ * mechanics for re-recruiting after death/betrayal, but since they start
+ * every reign already active, gating them would wrongly block content
+ * meant to be available from turn one. The bearer's own recruitment card
+ * (a different bearer per the data, e.g. #482 is bearer "anyone") is never
+ * itself excluded, and any card reached via an explicit chain jump is left
+ * alone (its own condition, or the chain's context, already governs it —
+ * the concern here is only the free pool drawing this content cold). */
+const RECRUIT_GATED_BEARERS: ReadonlyMap<string, number> = new Map([
+  ['prophet', 43],
+  ['queen', 358],
+  ['parker', 259],
+  ['foreign_princess', 269],
+  ['lady', 293],
+  ['minstrel', 343],
+  ['rival', 405],
+  ['doctor', 478],
+  ['spy', 480],
+  ['witch', 482],
+  ['homunculus', 498],
+  ['black_bird', 559],
+  ['barbare', 803],
+]);
+
+const BEARER_GATED_ORPHAN_IDS: ReadonlySet<number> = (() => {
+  const orphanIds = new Set<number>();
+  for (const [bearer, recruitCardId] of RECRUIT_GATED_BEARERS) {
+    for (const c of CARDS) {
+      if (c.bearer !== bearer) continue;
+      if (c.id === recruitCardId) continue;
+      if (c.conditions) continue; // has its own real gate, safe to leave in the free pool
+      if (isMidChainOrphanCard(c)) continue; // already excluded, avoid double-bookkeeping
+      orphanIds.add(c.id);
+    }
+  }
+  return orphanIds;
+})();
+
+function isBearerGatedOrphanCard(card: CardRow): boolean {
+  return BEARER_GATED_ORPHAN_IDS.has(card.id);
+}
+
 /** The 8 "gatekeeper" cards that fire the instant a stat hits 0 or 100 —
  * confirmed from the data itself: each is the ONLY card whose condition is
  * a bare single-term stat=0/100 comparison (spiritual=0, spiritual=100,
@@ -565,7 +637,12 @@ export function selectNextCard(state: GameState): CardRow | null {
   }
 
   const eligible = CARDS.filter(
-    (c) => cardIsEligible(state, c) && !isEndingCard(c) && !isDuelMoveFlavorCard(c) && !isMidChainOrphanCard(c)
+    (c) =>
+      cardIsEligible(state, c) &&
+      !isEndingCard(c) &&
+      !isDuelMoveFlavorCard(c) &&
+      !isMidChainOrphanCard(c) &&
+      !(isBearerGatedOrphanCard(c) && !state.activeBearers.has(c.bearer!))
   );
   const picked = pickWeighted(eligible);
   if (picked) logCardDraw(picked, 'pool', state);
