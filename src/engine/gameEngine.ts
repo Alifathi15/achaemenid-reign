@@ -327,63 +327,50 @@ function isDuelMoveFlavorCard(card: CardRow): boolean {
  * condition, e.g. `afterwedding`'s #366 `has_queen` vs #367 `age=25` — two
  * unrelated stories that happen to share a card_key, not a sequential
  * chain) or already covered by isDuelMoveFlavorCard. */
-/** Ids that are the legitimate lowest-id "entry" member of a real >=2-member
- * cardKey group — these ARE safe to draw cold from the free pool (that's
- * how the group's story begins in the first place). Cards with `cardKey`
- * `null`/`"_"` or a unique key (no sibling) have no such "group", so they
- * are never entries here — they're covered individually below instead. */
-const CHAIN_GROUP_ENTRY_IDS: ReadonlySet<number> = (() => {
-  const byKey = new Map<string, CardRow[]>();
-  for (const c of CARDS) {
-    if (!c.cardKey || c.cardKey === '_') continue;
-    const arr = byKey.get(c.cardKey);
-    if (arr) arr.push(c);
-    else byKey.set(c.cardKey, [c]);
-  }
-  const entries = new Set<number>();
-  for (const grp of byKey.values()) {
-    if (grp.length < 2) continue;
-    const entry = grp.reduce((a, b) => (a.id < b.id ? a : b));
-    entries.add(entry.id);
-  }
-  return entries;
-})();
-
 /** Ids that must NOT be drawn cold from the free pool because they only
  * make narrative sense as the continuation of a story the player has
  * already started, reachable via an explicit `>`/`>_X` jump from elsewhere.
  *
- * v1 of this exclusion (see prior comment/commit history) only considered
- * cards that shared a real (non-"_", non-unique) `cardKey` with at least
- * one other card: for each such group, IF anything outside the group jumps
- * into it (named `>_key` targeting the group, or a bare `>` landing on any
- * member's id), every non-entry member with `conditions: null` is excluded.
- * That mechanism is still correct and kept as-is below (case A) — it's how
- * e.g. `_party`'s #836-839 stay reachable only via the chain, not the pool.
+ * v1 (see prior commit history) excluded non-entry members of a real
+ * >=2-member cardKey group when something external named-jumped into that
+ * group, but always exempted the group's own lowest-id "entry" card,
+ * reasoning it was the legitimate pool-draw starting point.
  *
- * What v1 missed, confirmed via a user-provided play log showing card #497
- * (no real cardKey, "سرانجام پیشنهاد سازشی می‌دهم...") drawn cold on turn 6
- * with zero setup, mid-story:
- *   1. 194 cards use the placeholder `cardKey: "_"`, meaning "no real chain
- *      identity" — NOT "belongs to one shared 194-member group". Each is
- *      either fully standalone, or a bare-arrow jump target from ONE
- *      specific other card, with no relation to the other 193 at all. v1's
- *      grouping code explicitly skipped `cardKey === '_'` for THIS reason
- *      (so it never wrongly merged them into a fake group), but that also
- *      meant it never checked them individually as bare-arrow targets.
- *   2. Cards with a real, UNIQUE cardKey (no sibling) were never considered
- *      at all, because v1 required `grp.length >= 2` — but a bare-arrow or
- *      named jump can land on a single-member "group" just as easily (e.g.
- *      #681 `_priestcow`, the sole card with that key, is a real jump
- *      target from #680's `add_witch and >>>>_witchcow` step... — this
- *      needed a general "is this id a confirmed jump target" check, not a
- *      groups-of-2+ check, to catch it).
+ * v2 added a general "any confirmed jump target with conditions:null"
+ * check to also catch cardKey `"_"` cards and unique-cardKey singleton
+ * groups (fixing card #497, #681) — but STILL exempted every group's
+ * lowest-id member unconditionally via CHAIN_GROUP_ENTRY_IDS.
  *
- * Case B below adds that general check for exactly these two gaps: any
- * card NOT already covered by case A that is a confirmed jump target
- * (named-key or bare-arrow, from anywhere in the dataset) and has
- * `conditions: null` is excluded too, unless it's itself a legitimate
- * multi-member group's entry card. */
+ * That "entry is always exempt" assumption is itself wrong, confirmed via
+ * a second user-provided play log: card #835 (`_party`'s lowest-id member,
+ * "گرگینه در میانه‌ی جشن..." — "the werewolf howls mid-celebration") was
+ * drawn cold from the pool on turn 13, with the player having no idea a
+ * party was even happening. #835 IS the group's "entry" by id, but it is
+ * ALSO the confirmed target of a NAMED jump from #834 (bearer=priest,
+ * `conditions: "has_parker and has_werewolf"`, `custom: ">_party"`) — #834
+ * is the story's REAL entry point (a priest's warning once both the jester
+ * and werewolf are in the court), and #835 only exists to be jumped to
+ * from there. Same pattern confirmed for `_chooseflag` (#204, jumped to
+ * from #203's `has_jester` gate), `_returnexplorator_keep` (#241, jumped
+ * to from #240's colony-exploration setup), and every other named-jump
+ * target group checked — none of their "entry" cards make sense fired
+ * cold; they all presume the setup card already happened.
+ *
+ * v3 (this version) drops the blanket entry exemption. The rule is now
+ * uniform for ALL cards regardless of cardKey/group-entry status: a card
+ * with `conditions: null` is excluded from the free pool if it is a
+ * confirmed jump target (named `>_key`, targeting every member of that
+ * key's group, or bare-arrow `>`/`>>`/... landing on its exact id) from
+ * anywhere else in the 883-card dataset. The only remaining exemptions are
+ * (a) the jumping card's OWN chain-continuation arrows within the same
+ * group (a group's internal `>` between its own members doesn't make an
+ * EXTERNAL entry — that's just how the story advances turn to turn, e.g.
+ * `_party`'s #836-839 each bare-arrow back to `>_party` to keep the scene
+ * going) and (b) cards with their own real non-null `conditions` (already
+ * self-gating, independent of chain position). Groups with NO external
+ * jump reference at all (`bird`, `end_spice`, `ratereigns`, `afterwedding`
+ * — confirmed via full-dataset scan, no other card ever names or arrows
+ * into them) are correctly left fully pool-accessible, exactly as before. */
 const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
   const byKey = new Map<string, CardRow[]>();
   for (const c of CARDS) {
@@ -395,13 +382,15 @@ const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
 
   const orphanIds = new Set<number>();
 
-  // --- Case A: non-entry members of a real >=2-member cardKey group,
-  // when something external jumps into that group (original v1 logic). ---
+  // --- Case A: every member of a real cardKey group (including its
+  // lowest-id "entry") is excluded when something OUTSIDE the group
+  // explicitly names that group via `>_key`. Internal same-group bare
+  // arrows (a member's own `>` continuing its own story) never count as
+  // "external" here — only a NAMED jump, or a bare arrow originating from
+  // a card that is not itself a member of the group, counts. ---
   for (const [key, grp] of byKey) {
-    if (grp.length < 2) continue;
     if (key.startsWith('_duelmove')) continue; // already handled by isDuelMoveFlavorCard
     const sorted = [...grp].sort((a, b) => a.id - b.id);
-    const entryId = sorted[0].id;
     const memberIds = new Set(sorted.map((c) => c.id));
     let hasExternalEntry = false;
     for (const c of CARDS) {
@@ -424,18 +413,18 @@ const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
     }
     if (!hasExternalEntry) continue; // e.g. bird/end_spice/ratereigns/afterwedding
     for (const c of sorted) {
-      if (c.id === entryId) continue;
       if (c.conditions) continue; // has its own real gate, safe to leave in the free pool
       orphanIds.add(c.id);
     }
   }
 
-  // --- Case B: any OTHER card (cardKey "_" or a real-but-unique key) that
-  // is itself a confirmed jump target (named or bare-arrow) from anywhere
-  // in the dataset, and has no condition of its own. ---
+  // --- Case B: any OTHER card (cardKey "_" or a real-but-unique key, so
+  // not covered by case A's grouping) that is itself a confirmed jump
+  // target (named or bare-arrow) from anywhere in the dataset, and has no
+  // condition of its own. ---
   for (const c of CARDS) {
     if (orphanIds.has(c.id)) continue;
-    if (c.cardKey && c.cardKey !== '_' && (byKey.get(c.cardKey)?.length ?? 0) >= 2) continue; // handled by case A
+    if (c.cardKey && c.cardKey !== '_' && byKey.has(c.cardKey)) continue; // handled by case A
     if (c.cardKey?.startsWith('_duelmove')) continue;
     if (c.conditions) continue;
     let isJumpTarget = false;
