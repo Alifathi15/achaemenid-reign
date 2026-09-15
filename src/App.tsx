@@ -8,6 +8,7 @@ import { ProgressSummaryScreen } from './screens/ProgressSummaryScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { AchievementsScreen } from './screens/AchievementsScreen';
+import { NamePromptScreen } from './screens/NamePromptScreen';
 import {
   createInitialState,
   createNextReignState,
@@ -35,10 +36,11 @@ import {
 import { DuelScreen } from './screens/DuelScreen';
 import { DungeonScreen } from './screens/DungeonScreen';
 import bearersData from './data/bearers.json';
+import { sendDeathReportToTelegram } from './telemetry/telegramReport';
 
 const BEARERS = bearersData as { key: string; role: string; persianName: string }[];
 
-type Screen = 'loading' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings' | 'achievements';
+type Screen = 'loading' | 'namePrompt' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings' | 'achievements';
 
 const KING_NAMES = ['داریوش', 'خشایارشا', 'کوروش', 'اردشیر', 'کمبوجیه', 'وشتاسپ'];
 
@@ -73,9 +75,15 @@ export default function App() {
       // progress back to zero every single time the player started a new
       // reign — a real bug, not just a missing save feature.
       loadUnlockedObjectives(p.unlockedAchievements);
-      setScreen('home');
+      setScreen(p.playerName ? 'home' : 'namePrompt');
     });
   }, []);
+
+  function handleNameSubmit(name: string) {
+    if (!profile) return;
+    persistProfile({ ...profile, playerName: name });
+    setScreen('home');
+  }
 
   // Detect whether there's a live, in-progress reign to resume — checked
   // once on startup and re-checked whenever we return to Home, so the
@@ -200,6 +208,19 @@ export default function App() {
       setLastReignCoins(coinsEarned);
       setLastNewAchievements(result.unlockedObjectives.length);
 
+      // Playtest telemetry: fire-and-forget the full card-draw log to the
+      // developer's Telegram, tagged with this tester's name (see
+      // telemetry/telegramReport.ts). Never blocks/breaks the death screen
+      // if it fails (offline, blocked API, etc — see that module's doc
+      // comment on why errors are swallowed there).
+      void sendDeathReportToTelegram({
+        playerName: profile?.playerName ?? '',
+        dynastyIndex: state.dynasty,
+        kingName: KING_NAMES[state.dynasty % KING_NAMES.length],
+        ageAtDeath: state.age,
+        deathReason: result.deathReason ?? 'unknown',
+      });
+
       void recordReign({
         dynastyIndex: state.dynasty,
         kingName: KING_NAMES[state.dynasty % KING_NAMES.length],
@@ -314,6 +335,8 @@ export default function App() {
     <div className="app-shell">
       <IconSprite />
       {screen === 'loading' && <div style={{ color: 'var(--brown)', textAlign: 'center', paddingTop: 40 }}>در حالِ بارگذاری...</div>}
+
+      {screen === 'namePrompt' && <NamePromptScreen onSubmit={handleNameSubmit} />}
 
       {screen === 'home' && profile && (
         <HomeScreen

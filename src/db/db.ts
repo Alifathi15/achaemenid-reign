@@ -20,6 +20,12 @@ export interface PlayerProfile {
   soundEnabled: boolean;
   musicEnabled: boolean;
   language: string;
+  /** The tester's own display name, entered once before their first reign.
+   * Sent alongside the card-draw debug log on every death so the developer
+   * can tell whose playtest a given log came from — see
+   * telegramReport.ts's sendDeathReportToTelegram(). Empty string means
+   * "not yet asked" (see App.tsx's namePrompt screen). */
+  playerName: string;
 }
 
 /** The currently in-progress reign, if any. Saved after every decision so
@@ -70,7 +76,16 @@ export const db = new AchaemenidDB();
 
 export async function getOrCreateProfile(): Promise<PlayerProfile> {
   const existing = await db.profile.get('main');
-  if (existing) return existing;
+  if (existing) {
+    // Backfill playerName for profiles created before this field existed —
+    // Dexie doesn't enforce a schema on non-indexed fields, so an old
+    // record simply won't have it, and `undefined` would break the
+    // "not yet asked" empty-string check in App.tsx's namePrompt logic.
+    if (existing.playerName === undefined) {
+      existing.playerName = '';
+    }
+    return existing;
+  }
   const fresh: PlayerProfile = {
     id: 'main',
     coins: 0,
@@ -80,6 +95,7 @@ export async function getOrCreateProfile(): Promise<PlayerProfile> {
     soundEnabled: true,
     musicEnabled: true,
     language: 'fa',
+    playerName: '',
   };
   await db.profile.put(fresh);
   return fresh;
