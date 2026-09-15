@@ -13,6 +13,83 @@ const OBJECTIVES = objectivesData as unknown as ObjectiveRow[];
 
 const STAT_KEYS: StatKey[] = ['faith', 'army', 'people', 'treasury'];
 
+/** Debug card-draw log — records every card actually shown to the player
+ * this session, in order, with enough context to diagnose selection-logic
+ * bugs after the fact (e.g. "did this mid-chain card get drawn cold from
+ * the free pool, or did it correctly arrive via a chain jump?"). Purely
+ * in-memory (module-level, like unlockedObjectiveNames below) — not
+ * persisted to IndexedDB, cleared on page reload. Exposed via
+ * getCardDrawLog()/exportCardDrawLogText() so SettingsScreen can offer a
+ * "copy log" button for the player to hand back for analysis. */
+export interface CardDrawLogEntry {
+  turn: number;
+  cardId: number;
+  cardKey: string | null;
+  bearer: string | null;
+  conditions: string | null;
+  /** How this card was reached: 'chain' = arrived via a pending '>'/'>_X'
+   * jump from the previous card; 'pool' = drawn fresh from the free
+   * weighted-random pool; 'tutorial'/'gatekeeper' = the two other
+   * absolute-priority paths in selectNextCard(). */
+  source: 'tutorial' | 'gatekeeper' | 'chain' | 'pool';
+  question: string | null;
+  decision?: 'yes' | 'no';
+  dynasty: number;
+  age: number;
+}
+
+const cardDrawLog: CardDrawLogEntry[] = [];
+let cardDrawLogTurnCounter = 0;
+
+function logCardDraw(card: CardRow, source: CardDrawLogEntry['source'], state: GameState) {
+  cardDrawLogTurnCounter += 1;
+  cardDrawLog.push({
+    turn: cardDrawLogTurnCounter,
+    cardId: card.id,
+    cardKey: card.cardKey,
+    bearer: card.bearer,
+    conditions: card.conditions,
+    source,
+    question: card.question,
+    dynasty: state.dynasty,
+    age: state.age,
+  });
+}
+
+/** Records the player's yes/no decision against the most recently logged
+ * draw of this exact card id (applyDecision calls this right after
+ * selectNextCard's result is shown and answered). */
+function logCardDecision(cardId: number, decision: 'yes' | 'no') {
+  for (let i = cardDrawLog.length - 1; i >= 0; i--) {
+    if (cardDrawLog[i].cardId === cardId && cardDrawLog[i].decision === undefined) {
+      cardDrawLog[i].decision = decision;
+      return;
+    }
+  }
+}
+
+export function getCardDrawLog(): CardDrawLogEntry[] {
+  return [...cardDrawLog];
+}
+
+export function clearCardDrawLog(): void {
+  cardDrawLog.length = 0;
+  cardDrawLogTurnCounter = 0;
+}
+
+/** Plain-text rendering of the log, one line per card draw, suitable for
+ * copy/paste into a chat message or text file. */
+export function exportCardDrawLogText(): string {
+  if (cardDrawLog.length === 0) return '(لاگ خالیه — هنوز هیچ کارتی کشیده نشده)';
+  const lines = cardDrawLog.map((e) => {
+    const dec = e.decision ?? '—';
+    const key = e.cardKey && e.cardKey !== '_' ? e.cardKey : '-';
+    const cond = e.conditions ?? 'null';
+    return `#${e.turn} | card=${e.cardId} | key=${key} | source=${e.source} | dynasty=${e.dynasty} age=${e.age} | cond=${cond} | decision=${dec} | "${(e.question ?? '').slice(0, 60)}"`;
+  });
+  return lines.join('\n');
+}
+
 export function createInitialState(): GameState {
   return {
     stats: { faith: 50, army: 50, people: 50, treasury: 50 },
@@ -404,7 +481,10 @@ export function selectNextCard(state: GameState): CardRow | null {
   //    draw whenever it's still eligible, regardless of what other
   //    weight="max" cards exist in the pool.
   const tutorialOpener = CARDS.find((c) => c.id === 575);
-  if (tutorialOpener && cardIsEligible(state, tutorialOpener)) return tutorialOpener;
+  if (tutorialOpener && cardIsEligible(state, tutorialOpener)) {
+    logCardDraw(tutorialOpener, 'tutorial', state);
+    return tutorialOpener;
+  }
 
   // 0.5. GDD §7 step 12 — ABSOLUTE priority: if any stat is currently at its
   //    0/100 threshold, its gatekeeper card (see STAT_ENDING_GATEKEEPER_IDS)
@@ -435,7 +515,10 @@ export function selectNextCard(state: GameState): CardRow | null {
   const chainInFlight = state.pendingNextCardId !== null || state.pendingChainCardKey !== null;
   if (!chainInFlight) {
     const statEnding = checkStatEndingGatekeepers(state);
-    if (statEnding) return statEnding;
+    if (statEnding) {
+      logCardDraw(statEnding, 'gatekeeper', state);
+      return statEnding;
+    }
   }
 
   // 1. bare '>' directive: go to the card at id+steps IF it's currently
@@ -453,7 +536,10 @@ export function selectNextCard(state: GameState): CardRow | null {
     const targetId = state.pendingNextCardId;
     state.pendingNextCardId = null;
     const direct = CARDS.find((c) => c.id === targetId);
-    if (direct && cardIsEligible(state, direct)) return direct;
+    if (direct && cardIsEligible(state, direct)) {
+      logCardDraw(direct, 'chain', state);
+      return direct;
+    }
     // target doesn't exist, or isn't eligible right now -> chain ends,
     // fall through to normal pool
   }
@@ -470,7 +556,10 @@ export function selectNextCard(state: GameState): CardRow | null {
         evaluateConditions(state, c.conditions)
     );
     const picked = pickWeighted(chainCards);
-    if (picked) return picked;
+    if (picked) {
+      logCardDraw(picked, 'chain', state);
+      return picked;
+    }
     // if nothing matched, fall through to normal pool (chain dead-ended)
     state.pendingChainCardKey = null;
   }
@@ -478,7 +567,9 @@ export function selectNextCard(state: GameState): CardRow | null {
   const eligible = CARDS.filter(
     (c) => cardIsEligible(state, c) && !isEndingCard(c) && !isDuelMoveFlavorCard(c) && !isMidChainOrphanCard(c)
   );
-  return pickWeighted(eligible);
+  const picked = pickWeighted(eligible);
+  if (picked) logCardDraw(picked, 'pool', state);
+  return picked;
 }
 
 function applyStatDelta(state: GameState, delta: StatDelta) {
@@ -521,6 +612,8 @@ export function getUnlockedObjectiveNames(): string[] {
 }
 
 export function applyDecision(state: GameState, card: CardRow, decision: 'yes' | 'no'): TurnResult {
+  logCardDecision(card.id, decision);
+
   // If the card being resolved IS an ending card itself (reached via an
   // explicit chain jump, e.g. losing a duel -> #379 end>dead_king_duel),
   // the reign ends immediately on this decision — these cards' own
