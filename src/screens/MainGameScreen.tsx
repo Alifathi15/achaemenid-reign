@@ -211,16 +211,25 @@ export function MainGameScreen({ card, state, onDecide }: MainGameScreenProps) {
         })}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 8px', gap: 14 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 20px 8px', gap: 10 }}>
         {/* Question text: FIXED above the card, never fades or changes while dragging
             (confirmed from real Reigns screenshots — do not add fade logic here). */}
-        <div style={{ color: 'var(--brown)', fontSize: 15, lineHeight: 1.7, textAlign: 'center', maxWidth: 320, fontWeight: 600 }}>
+        <div style={{ color: 'var(--brown)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', maxWidth: 320, fontWeight: 600, flexShrink: 0 }}>
           {card.question}
         </div>
 
         <div
           style={{
-            width: 320, height: 460, borderRadius: 20, overflow: 'hidden',
+            // Fixed 320x460 px previously overflowed the visible viewport on
+            // real phones (shorter screen heights than desktop dev tools),
+            // pushing the bottom bar off-screen behind app-shell's
+            // overflow:hidden. Now the card fills whatever vertical space
+            // remains after the stat bar/question/bottom bar, capped by a
+            // max-width so it never grows absurdly wide on tablets, with
+            // the Reigns-authentic 320:460 (~0.696) aspect ratio preserved
+            // via aspect-ratio instead of a hardcoded height.
+            width: '100%', maxWidth: 320, aspectRatio: '320 / 460', maxHeight: '100%',
+            borderRadius: 20, overflow: 'hidden',
             boxShadow: '0 10px 30px rgba(0,0,0,.35)', display: 'flex', flexDirection: 'column',
             transform: `translateX(${dragX}px) rotate(${rotation}deg)`,
             transition: dragging ? 'none' : 'transform .25s',
