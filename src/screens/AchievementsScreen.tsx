@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import objectivesData from '../data/objectives.json';
-import { ACHIEVEMENT_CATEGORIES } from '../data/achievementCategories';
+import { ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_ORDER } from '../data/achievementCategories';
 import type { ObjectiveRow } from '../engine/types';
 
 const OBJECTIVES = objectivesData as unknown as ObjectiveRow[];
@@ -25,6 +25,23 @@ if (import.meta.env.DEV) {
   for (const o of OBJECTIVES) {
     if (!seen.has(o.name)) {
       console.error(`achievementCategories: objective "${o.name}" is not in any group`);
+    }
+  }
+  // ACHIEVEMENT_ORDER must also list every objective exactly once, and
+  // every category's `members` array must already be sorted per that
+  // order — this catches a category going stale if someone hand-edits
+  // achievementCategories.ts without re-running scripts_order_calc.cjs.
+  const orderIndex = new Map(ACHIEVEMENT_ORDER.map((name, i) => [name, i]));
+  if (ACHIEVEMENT_ORDER.length !== OBJECTIVES.length) {
+    console.error(`achievementCategories: ACHIEVEMENT_ORDER has ${ACHIEVEMENT_ORDER.length} entries, expected ${OBJECTIVES.length}`);
+  }
+  for (const cat of ACHIEVEMENT_CATEGORIES) {
+    for (let i = 1; i < cat.members.length; i++) {
+      const prev = orderIndex.get(cat.members[i - 1]) ?? -1;
+      const curr = orderIndex.get(cat.members[i]) ?? -1;
+      if (prev > curr) {
+        console.error(`achievementCategories: group "${cat.id}" is not sorted by ACHIEVEMENT_ORDER at "${cat.members[i]}"`);
+      }
     }
   }
 }
