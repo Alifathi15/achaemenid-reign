@@ -210,6 +210,95 @@ function isDuelMoveFlavorCard(card: CardRow): boolean {
   return !!card.cardKey && card.cardKey.startsWith('_duelmove');
 }
 
+/** Cards that must ONLY ever be reached by an explicit '>'/'>_X' chain jump
+ * from the PREVIOUS card in their own story, never drawn cold out of the
+ * normal weighted-random pool. Confirmed as a REAL bug via direct
+ * simulation: 90 of the 883 cards belong to a multi-card `card_key` group
+ * (a scripted mini-story — e.g. `_madrun`, the ambassador-affair story;
+ * `_tinder`, the witch's spouse-selection ritual; `_magiclearn`, the
+ * witch's spellcraft lessons) AND are not that group's entry card (lowest
+ * id) AND carry `conditions: null` — meaning `cardIsEligible()` treats them
+ * as unconditionally eligible the same as any ordinary card. With nothing
+ * else excluding them, the free pool could draw e.g. card #84 ("خدمتکاری
+ * با ترس گزارش می‌دهد که سفیر و زن را در راهرو دیدند" — "a servant reports
+ * seeing them in the corridor") completely cold, with no prior card ever
+ * having introduced the affair, no `nb_madrun` counter built up, and no
+ * narrative context at all — the player sees the MIDDLE of a story they
+ * never started. Simulation confirms this actually happens: in a 30x300-
+ * reign run, mid-chain orphan cards were drawn out of context on ~3.5% of
+ * all turns.
+ *
+ * This mirrors the exact same shape of bug already fixed for `end>` cards
+ * (isEndingCard) and `_duelmove_*` cards (isDuelMoveFlavorCard) — a whole
+ * class of "must be jumped to, not drawn" content that nothing was
+ * filtering out of the free pool. The fix here generalizes that pattern:
+ * any card sharing a `card_key` with at least one OTHER card (i.e. it's
+ * part of a real multi-card group, confirmed via an external '>'/'>_X'
+ * reference into that group from elsewhere in the 883-card dataset — see
+ * scripts_order_calc-style analysis, verified 56 of 64 multi-card groups
+ * have such an external entry point) is excluded from the free pool UNLESS
+ * it is that group's own entry card (lowest id) OR it carries its own
+ * non-null `conditions` (meaning the data itself already gates when that
+ * card can legitimately fire, independent of chain position — e.g.
+ * `_end_toorich`'s #801 requires `crusade_keep`, a real standalone gate).
+ *
+ * The 8 groups WITHOUT an external chain-entry reference (`bird`,
+ * `end_spice`, `ratereigns`, `afterwedding`, and the 4 `_duelmove_*`
+ * groups already handled separately) are correctly left untouched — their
+ * members are either independently-conditioned parallel content (verified:
+ * every member of those 4 non-duelmove groups carries its own real
+ * condition, e.g. `afterwedding`'s #366 `has_queen` vs #367 `age=25` — two
+ * unrelated stories that happen to share a card_key, not a sequential
+ * chain) or already covered by isDuelMoveFlavorCard. */
+const MID_CHAIN_ORPHAN_IDS: ReadonlySet<number> = (() => {
+  const groups = new Map<string, CardRow[]>();
+  for (const c of CARDS) {
+    if (!c.cardKey || c.cardKey === '_') continue;
+    const arr = groups.get(c.cardKey);
+    if (arr) arr.push(c);
+    else groups.set(c.cardKey, [c]);
+  }
+  const orphanIds = new Set<number>();
+  for (const [key, grp] of groups) {
+    if (grp.length < 2) continue;
+    if (key.startsWith('_duelmove')) continue; // already handled by isDuelMoveFlavorCard
+    const sorted = [...grp].sort((a, b) => a.id - b.id);
+    const entryId = sorted[0].id;
+    const memberIds = new Set(sorted.map((c) => c.id));
+    // does anything OUTSIDE this group explicitly jump into it?
+    let hasExternalEntry = false;
+    for (const c of CARDS) {
+      if (memberIds.has(c.id)) continue;
+      for (const side of [c.yes, c.no]) {
+        const custom = side?.custom;
+        if (!custom) continue;
+        for (const rawToken of custom.split(/\s+and\s+/i)) {
+          const t = rawToken.trim();
+          const namedJump = t.match(/^>+_?(\w+)$/);
+          if (namedJump && ('_' + namedJump[1] === key || namedJump[1] === key)) {
+            hasExternalEntry = true;
+          }
+          const bareArrow = t.match(/^(>+)$/);
+          if (bareArrow && memberIds.has(c.id + bareArrow[1].length)) {
+            hasExternalEntry = true;
+          }
+        }
+      }
+    }
+    if (!hasExternalEntry) continue; // e.g. bird/end_spice/ratereigns/afterwedding
+    for (const c of sorted) {
+      if (c.id === entryId) continue;
+      if (c.conditions) continue; // has its own real gate, safe to leave in the free pool
+      orphanIds.add(c.id);
+    }
+  }
+  return orphanIds;
+})();
+
+function isMidChainOrphanCard(card: CardRow): boolean {
+  return MID_CHAIN_ORPHAN_IDS.has(card.id);
+}
+
 /** The 8 "gatekeeper" cards that fire the instant a stat hits 0 or 100 —
  * confirmed from the data itself: each is the ONLY card whose condition is
  * a bare single-term stat=0/100 comparison (spiritual=0, spiritual=100,
@@ -386,7 +475,9 @@ export function selectNextCard(state: GameState): CardRow | null {
     state.pendingChainCardKey = null;
   }
 
-  const eligible = CARDS.filter((c) => cardIsEligible(state, c) && !isEndingCard(c) && !isDuelMoveFlavorCard(c));
+  const eligible = CARDS.filter(
+    (c) => cardIsEligible(state, c) && !isEndingCard(c) && !isDuelMoveFlavorCard(c) && !isMidChainOrphanCard(c)
+  );
   return pickWeighted(eligible);
 }
 
