@@ -31,16 +31,27 @@ interface DeathReportInfo {
   kingName: string;
   ageAtDeath: number;
   deathReason: string;
+  /** Free-text note the tester typed on FeedbackScreen right after death —
+   * empty string means they tapped "مشکلی نداشتم" (no issue) with nothing
+   * written. Always included in the report so a bug note always travels
+   * with the exact card sequence that produced it. */
+  feedback: string;
 }
 
 function buildHeader(info: DeathReportInfo): string {
-  return [
+  const lines = [
     `مرگِ یک سلطنت — گزارشِ پلی‌تست`,
     `بازیکن: ${info.playerName || '(بدون نام)'}`,
     `پادشاه: ${info.kingName} (دودمانِ ${info.dynastyIndex})`,
     `سنِ مرگ: ${info.ageAtDeath}`,
     `دلیلِ مرگ: ${info.deathReason}`,
-  ].join('\n');
+  ];
+  if (info.feedback) {
+    lines.push('', `نظرِ بازیکن: ${info.feedback}`);
+  } else {
+    lines.push('', 'نظرِ بازیکن: (مشکلی گزارش نشد)');
+  }
+  return lines.join('\n');
 }
 
 async function sendTelegramMessage(text: string): Promise<void> {

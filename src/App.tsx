@@ -9,6 +9,7 @@ import { ShopScreen } from './screens/ShopScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { AchievementsScreen } from './screens/AchievementsScreen';
 import { NamePromptScreen } from './screens/NamePromptScreen';
+import { FeedbackScreen } from './screens/FeedbackScreen';
 import {
   createInitialState,
   createNextReignState,
@@ -40,7 +41,7 @@ import { sendDeathReportToTelegram } from './telemetry/telegramReport';
 
 const BEARERS = bearersData as { key: string; role: string; persianName: string }[];
 
-type Screen = 'loading' | 'namePrompt' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'progress' | 'shop' | 'settings' | 'achievements';
+type Screen = 'loading' | 'namePrompt' | 'home' | 'reignStart' | 'game' | 'duel' | 'dungeon' | 'death' | 'feedback' | 'progress' | 'shop' | 'settings' | 'achievements';
 
 const KING_NAMES = ['داریوش', 'خشایارشا', 'کوروش', 'اردشیر', 'کمبوجیه', 'وشتاسپ'];
 
@@ -64,6 +65,17 @@ export default function App() {
   const [lastYearsRuled, setLastYearsRuled] = useState(0);
   const [lastDeathReason, setLastDeathReason] = useState('');
   const [lastNewAchievements, setLastNewAchievements] = useState(0);
+  // Snapshot of the reign that just ended, held until the player finishes
+  // the FeedbackScreen — sendDeathReportToTelegram fires from there (not
+  // at the moment of death) so the tester's own bug note can travel in
+  // the SAME Telegram message as the card-draw log, instead of two
+  // separate messages arriving out of order.
+  const [pendingDeathReport, setPendingDeathReport] = useState<{
+    dynastyIndex: number;
+    kingName: string;
+    ageAtDeath: number;
+    deathReason: string;
+  } | null>(null);
 
   useEffect(() => {
     getOrCreateProfile().then((p) => {
@@ -208,13 +220,12 @@ export default function App() {
       setLastReignCoins(coinsEarned);
       setLastNewAchievements(result.unlockedObjectives.length);
 
-      // Playtest telemetry: fire-and-forget the full card-draw log to the
-      // developer's Telegram, tagged with this tester's name (see
-      // telemetry/telegramReport.ts). Never blocks/breaks the death screen
-      // if it fails (offline, blocked API, etc — see that module's doc
-      // comment on why errors are swallowed there).
-      void sendDeathReportToTelegram({
-        playerName: profile?.playerName ?? '',
+      // Playtest telemetry: snapshot this reign's death info now (before
+      // heirState/createNextReignState overwrites `state.dynasty` etc
+      // below) — the actual Telegram send is deferred until the player
+      // finishes FeedbackScreen (see handleFeedbackSubmit) so their bug
+      // note travels in the SAME message as the card-draw log.
+      setPendingDeathReport({
         dynastyIndex: state.dynasty,
         kingName: KING_NAMES[state.dynasty % KING_NAMES.length],
         ageAtDeath: state.age,
@@ -295,6 +306,21 @@ export default function App() {
   }
 
   function handleDeathContinue() {
+    setScreen('feedback');
+  }
+
+  function handleFeedbackSubmit(feedback: string) {
+    if (pendingDeathReport) {
+      // Fire-and-forget: never blocks navigation if the network call fails
+      // (offline device, blocked API, etc — see telemetry/telegramReport.ts's
+      // doc comment on why errors are swallowed there).
+      void sendDeathReportToTelegram({
+        playerName: profile?.playerName ?? '',
+        ...pendingDeathReport,
+        feedback,
+      });
+      setPendingDeathReport(null);
+    }
     setScreen('progress');
   }
 
@@ -389,6 +415,8 @@ export default function App() {
           onContinue={handleDeathContinue}
         />
       )}
+
+      {screen === 'feedback' && <FeedbackScreen onSubmit={handleFeedbackSubmit} />}
 
       {screen === 'progress' && (
         <ProgressSummaryScreen
