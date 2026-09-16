@@ -705,6 +705,23 @@ export function selectNextCard(state: GameState): CardRow | null {
     return tutorialOpener;
   }
 
+  // 0.2. Same class of bug as #575 above, for the dynasty-2 tutorial
+  // follow-up (#579, "second_ghost", bearer "ghost", conditions
+  // "dynasty=2", weight="max", lockturn="del"). #508 ("_magiclearn",
+  // bearer "witch") also carries weight="max" with conditions=null (i.e.
+  // eligible on ANY turn, including the first turn of dynasty 2) - the
+  // exact same coin-flip collision that made #575 unreliable, just one
+  // dynasty later. Without this explicit priority check, pickWeighted()
+  // treats #579 and #508 as equally-weighted competitors the instant
+  // dynasty flips to 2, so roughly half of players would see the
+  // witch's unrelated card instead of the documented "the king is
+  // mortal, the dynasty continues" reminder.
+  const secondGhostOpener = CARDS.find((c) => c.id === 579);
+  if (secondGhostOpener && cardIsEligible(state, secondGhostOpener)) {
+    logCardDraw(secondGhostOpener, 'tutorial', state);
+    return secondGhostOpener;
+  }
+
   // 0.5. GDD §7 step 12 — ABSOLUTE priority: if any stat is currently at its
   //    0/100 threshold, its gatekeeper card (see STAT_ENDING_GATEKEEPER_IDS)
   //    must be shown next. Checked before the '>'/'>_X' chain-resume logic
