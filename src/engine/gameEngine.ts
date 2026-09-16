@@ -552,6 +552,66 @@ function isBearerGatedOrphanCard(card: CardRow): boolean {
  *   158 (toorich, treasure=100), 161 (penniless, treasure=0). */
 const STAT_ENDING_GATEKEEPER_IDS = [131, 134, 137, 141, 145, 150, 158, 161];
 
+/** Members of the 8 stat-threshold gatekeepers' own target chain groups
+ * (e.g. `_end_heavenonearth`, `_end_nodemo`...) — confirmed as a REAL bug
+ * via a user-provided play log: card #135 (`_end_heavenonearth`'s escape
+ * route, bearer "dungeon>door_wall_dark", conditions "!intheDungeon" —
+ * true almost always) was drawn cold from the free pool at age 21 with
+ * `spiritual` nowhere near 100, its "no" answer chained via bare '>' into
+ * #136 (an unconditional bearer="end>..." card), ending the reign at age
+ * 22 for a reason completely disconnected from anything the player did.
+ *
+ * `isMidChainOrphanCard` already exists for exactly this shape of bug (a
+ * card that only makes narrative sense as a chain continuation), but its
+ * exemption rule — "a card with its own non-null `conditions` is assumed
+ * to be independently self-gating, safe to leave in the free pool" — does
+ * NOT hold for these specific escape-route cards: `!intheDungeon`,
+ * `cathedral_keep`, `fortification_keep`, `barn_keep`, `centralbank_keep`,
+ * `school_keep`, `reddwarf_keep`, `crusade_keep` are near-always-true (or
+ * merely "this building exists") gates, not evidence the player actually
+ * reached the crisis these cards are written to resolve — that crisis is
+ * ONLY represented by the gatekeeper's own condition (e.g. spiritual=100).
+ * Confirmed by design intent: these cards' own weight (400, "max", 500,
+ * 100000...) is an order of magnitude above the ordinary 1-100 pool range
+ * SPECIFICALLY so they win decisively once reached via the gatekeeper's
+ * chain jump — that same extreme weight is what makes a cold pool draw of
+ * one of these near-certain once its (weak) condition holds, hijacking
+ * play with narrative that presupposes a crisis that never happened.
+ *
+ * Fix scope: exclude EVERY member of each gatekeeper's target group from
+ * the free pool — including the group's own end> members (already covered
+ * by isEndingCard, kept here too for completeness/robustness) and the
+ * escape-route members regardless of their own conditions field. This
+ * does NOT touch any card's `weight` (per explicit product decision: the
+ * weights are intentional and must stay as authored for their role WITHIN
+ * the chain-selection pickWeighted() call) — it only removes these cards
+ * from the unrelated free-pool draw path. Reachability via the gatekeeper
+ * chain jump (pendingChainCardKey) is untouched, since that path calls
+ * `evaluateConditions` directly, not this pool filter. */
+const GATEKEEPER_TARGET_ORPHAN_IDS: ReadonlySet<number> = (() => {
+  const orphanIds = new Set<number>();
+  for (const gatekeeperId of STAT_ENDING_GATEKEEPER_IDS) {
+    const gatekeeper = CARDS.find((c) => c.id === gatekeeperId);
+    if (!gatekeeper) continue;
+    const rawCustom = gatekeeper.yes.custom ?? gatekeeper.no.custom ?? '';
+    // gatekeeper custom is always "> _targetKey [and ...]" (or "and"-joined
+    // with unrelated flags, e.g. #137's war-flag clears) — the chain jump
+    // token is always the first "and"-separated piece.
+    const firstToken = rawCustom.split(/\s+and\s+/i)[0]?.trim() ?? '';
+    const m = firstToken.match(/^>+(_?\w+)$/);
+    if (!m) continue;
+    const targetKey = m[1];
+    for (const c of CARDS) {
+      if (c.cardKey === targetKey) orphanIds.add(c.id);
+    }
+  }
+  return orphanIds;
+})();
+
+function isGatekeeperTargetOrphanCard(card: CardRow): boolean {
+  return GATEKEEPER_TARGET_ORPHAN_IDS.has(card.id);
+}
+
 /** GDD §7 step 12: "چک کن آیا شرایطِ end> فعال شدن؟ اگه آره، این کارت‌ها
  * اولویتِ مطلق دارن" — after every decision, before anything else
  * (including an in-progress story chain or the normal pool), check whether
@@ -725,6 +785,7 @@ export function selectNextCard(state: GameState): CardRow | null {
       !isEndingCard(c) &&
       !isDuelMoveFlavorCard(c) &&
       !isMidChainOrphanCard(c) &&
+      !isGatekeeperTargetOrphanCard(c) &&
       !(isBearerGatedOrphanCard(c) && !state.activeBearers.has(c.bearer!))
   );
   const picked = pickWeighted(eligible);
