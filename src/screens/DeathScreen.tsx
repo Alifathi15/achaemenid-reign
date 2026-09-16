@@ -4,6 +4,16 @@ interface DeathScreenProps {
   ageAtDeath: number;
   yearsRuled: number;
   reason: string;
+  /** The dying card's own `question` text (see gameEngine.ts's
+   * TurnResult.deathStoryText doc comment) — passed through for the 42
+   * real narrative endings (bearer="end>..."), so the death screen shows
+   * the SAME specific story the game already authored for that exact
+   * ending (e.g. "آتشکده صلاح دید که یه شهید تر و تمیز ازت درمیاد؛ واسه
+   * همین تیکه‌پاره‌ت کردن!") instead of always falling back to one of the
+   * 8 generic REASON_TEXT lines below. null for the 8 pure stat-threshold
+   * deaths, which have no card of their own — REASON_TEXT still covers
+   * those exactly as before. */
+  storyText: string | null;
   onContinue: () => void;
 }
 
@@ -18,8 +28,17 @@ const REASON_TEXT: Record<string, string> = {
   treasury_max: 'انباشتِ بیش‌ازحدِ ثروت، حسادت رقیبان را برانگیخت.',
 };
 
-export function DeathScreen({ ageAtDeath, yearsRuled, reason, onContinue }: DeathScreenProps) {
-  const story = REASON_TEXT[reason] ?? 'سلطنتِ او در سکوتِ تاریخ به پایان رسید.';
+/** Card question text sometimes wraps its narration in `<i>...</i>` (a
+ * markup convention used for whispered/omniscient-narrator lines, e.g.
+ * card #135 "<i>قصد جونت رو کردن!...</i>") — meaningful while dragging the
+ * card mid-game, but the death screen has its own dedicated presentation,
+ * so the raw tags are stripped rather than rendered literally. */
+function stripItalicMarkup(text: string): string {
+  return text.replace(/<i>/g, '').replace(/<\/i>/g, '').trim();
+}
+
+export function DeathScreen({ ageAtDeath, yearsRuled, reason, storyText, onContinue }: DeathScreenProps) {
+  const story = storyText ? stripItalicMarkup(storyText) : REASON_TEXT[reason] ?? 'سلطنتِ او در سکوتِ تاریخ به پایان رسید.';
   return (
     <div
       style={{

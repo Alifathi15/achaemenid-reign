@@ -64,6 +64,7 @@ export default function App() {
   const [lastDeathAge, setLastDeathAge] = useState(0);
   const [lastYearsRuled, setLastYearsRuled] = useState(0);
   const [lastDeathReason, setLastDeathReason] = useState('');
+  const [lastDeathStoryText, setLastDeathStoryText] = useState<string | null>(null);
   const [lastNewAchievements, setLastNewAchievements] = useState(0);
   // Snapshot of the reign that just ended, held until the player finishes
   // the FeedbackScreen — sendDeathReportToTelegram fires from there (not
@@ -217,6 +218,7 @@ export default function App() {
       setLastDeathAge(state.age);
       setLastYearsRuled(state.age - 18);
       setLastDeathReason(result.deathReason ?? '');
+      setLastDeathStoryText(result.deathStoryText);
       setLastReignCoins(coinsEarned);
       setLastNewAchievements(result.unlockedObjectives.length);
 
@@ -412,6 +414,7 @@ export default function App() {
           ageAtDeath={lastDeathAge}
           yearsRuled={lastYearsRuled}
           reason={lastDeathReason}
+          storyText={lastDeathStoryText}
           onContinue={handleDeathContinue}
         />
       )}

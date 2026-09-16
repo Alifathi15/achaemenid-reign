@@ -921,6 +921,17 @@ export interface TurnResult {
   decision: 'yes' | 'no';
   died: boolean;
   deathReason: string | null;
+  /** The narrative text to show on the death screen — for a real
+   * bearer="end>..." ending card (42 of them across the dataset, e.g.
+   * #136 "آتشکده صلاح دید که یه شهید تر و تمیز ازت درمیاد..."), this is
+   * that SAME card's own `question` text, since every one of those cards
+   * was authored specifically as death-screen narration (confirmed via
+   * Recovered_Game_Logic_Deep_Dive.xlsx's "Death Cards" sheet — all 42
+   * rows' `question` column reads as a completed past-tense death
+   * narrative, not an in-play yes/no prompt). null for the 8 generic
+   * stat-threshold reasons (faith_zero etc, which have no card of their
+   * own — DeathScreen's existing REASON_TEXT table already covers those). */
+  deathStoryText: string | null;
   unlockedObjectives: ObjectiveRow[];
 }
 
@@ -956,7 +967,14 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   if (isEndingCard(card)) {
     state.isDead = true;
     state.deathReason = endingCardDeathReason(card);
-    return { card, decision, died: true, deathReason: state.deathReason, unlockedObjectives: [] };
+    return {
+      card,
+      decision,
+      died: true,
+      deathReason: state.deathReason,
+      deathStoryText: card.question,
+      unlockedObjectives: [],
+    };
   }
 
   const delta = decision === 'yes' ? card.yes : card.no;
@@ -1122,7 +1140,7 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
     else state.lockedCards.set(id, next);
   }
 
-  return { card, decision, died, deathReason, unlockedObjectives: unlocked };
+  return { card, decision, died, deathReason, deathStoryText: null, unlockedObjectives: unlocked };
 }
 
 export function resetUnlockedObjectives() {
