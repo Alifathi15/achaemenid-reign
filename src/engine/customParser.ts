@@ -23,6 +23,14 @@ export interface ChainDirective {
 export interface CustomApplyResult {
   chain: ChainDirective | null;
   specials: string[];
+  /** flag names this call set to true (bare-flag or `X_keep` tokens) —
+   * exposed so gameEngine.ts can react (e.g. activate a periodic Effect
+   * whose tag matches). customParser stays grammar-only: it does not know
+   * what an "Effect" is, it just reports which flags changed. */
+  flagsSet: string[];
+  /** flag names this call cleared (`!X` tokens) — same purpose as
+   * flagsSet, for deactivating a periodic Effect early. */
+  flagsCleared: string[];
 }
 
 type SpecialHandler = (state: GameState, tag: string) => void;
@@ -80,7 +88,7 @@ function parseChainToken(token: string): ChainDirective | null {
 }
 
 export function applyCustom(state: GameState, custom: string | null | undefined): CustomApplyResult {
-  const result: CustomApplyResult = { chain: null, specials: [] };
+  const result: CustomApplyResult = { chain: null, specials: [], flagsSet: [], flagsCleared: [] };
   if (!custom || custom.trim() === '') return result;
 
   const tokens = custom.split(/\s+and\s+/i).map((t) => t.trim()).filter(Boolean);
@@ -142,17 +150,21 @@ export function applyCustom(state: GameState, custom: string | null | undefined)
     // plain "X_keep" token (no leading '!') still falls through to the
     // "_keep" branch exactly as before.
     if (token.startsWith('!')) {
-      delete state.flags[token.slice(1)];
+      const flagName = token.slice(1);
+      delete state.flags[flagName];
+      result.flagsCleared.push(flagName);
       continue;
     }
 
     if (token.endsWith('_keep')) {
       state.flags[token] = true;
+      result.flagsSet.push(token);
       continue;
     }
 
     // fallback: bare flag set true (covers things like isLover, isStone, etc.)
     state.flags[token] = true;
+    result.flagsSet.push(token);
   }
 
   return result;

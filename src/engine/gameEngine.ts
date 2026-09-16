@@ -2,14 +2,18 @@
  * gameEngine.ts — the core turn loop, per Achaemenid_Engine_Spec.md §7.
  */
 import type { CardRow, GameState, ObjectiveRow, StatDelta, StatKey } from './types';
+import type { EffectRow } from './types';
 import { evaluateConditions } from './conditionParser';
 import { applyCustom } from './customParser';
 import { parseRawValue, resolveValue } from './valueParser';
 import cardsData from '../data/cards.json';
 import objectivesData from '../data/objectives.json';
+import effectsData from '../data/effects.json';
 
 const CARDS = cardsData as unknown as CardRow[];
 const OBJECTIVES = objectivesData as unknown as ObjectiveRow[];
+const EFFECTS = effectsData as unknown as EffectRow[];
+const EFFECTS_BY_TAG = new Map(EFFECTS.map((e) => [e.tag, e]));
 
 const STAT_KEYS: StatKey[] = ['faith', 'army', 'people', 'treasury'];
 
@@ -808,6 +812,110 @@ function applyStatDelta(state: GameState, delta: StatDelta) {
   }
 }
 
+/** Effects (src/data/effects.json, 21 rows) describe PERIODIC per-turn stat
+ * deltas layered on top of a `_keep`/bare-flag token already handled by
+ * customParser.ts — e.g. `plague` drains people by 3 every turn for as
+ * long as the flag is active, `isLover` drains faith by 1/turn, `isSlaver`
+ * gains treasury by 2/turn for exactly 15 turns then stops. Confirmed via
+ * user clarification on the recovered-data spec: a trailing `*` on an
+ * Effects-sheet value means "apply this delta every turn the effect is
+ * active" (distinct from a card's own yes/no stat delta, where `*` is
+ * purely a cosmetic UI marker per valueParser.ts and has zero numeric
+ * effect — same underlying parseRawValue/resolveValue magnitude-extraction
+ * is reused here, just re-applied every turn instead of once). `length`
+ * (present on 3 of the 21 rows: isSlaver=15, isStone=8, theocracy=30,
+ * spice_trade_keep=30) bounds how many turns the delta keeps applying
+ * before automatically stopping.
+ *
+ * REAL BUG this closes: `GameState.activeEffects` (a Map<string,
+ * {turnsLeft}>) existed in types.ts from the start specifically for this,
+ * but nothing ever populated or read it — every one of these 21 designed
+ * mechanics (plague's population drain, a crusading king's slow treasury
+ * drain, a lover's fading faith, being trapped in the dungeon draining all
+ * four stats every turn...) was silently inert; the token only ever became
+ * a boolean flag with no periodic effect.
+ *
+ * Deliberately SCOPED to avoid a new regression: only the 8 Effects rows
+ * that actually carry a non-null faith/army/people/treasury delta
+ * (crusade_keep, isSlaver, plague, isLover, intheDungeon, theocracy,
+ * spice_trade_keep, colonies_keep) are wired into activeEffects at all —
+ * the other 13 (isStone, isOblivious, isDeaf, devil_visit,
+ * devil_curse_keep, fortification_keep, strawberry_keep, centralbank_keep,
+ * cathedral_keep, hospital_keep, barn_keep, excalibur_keep, dice_keep)
+ * have no deltas to apply and are left exactly as before — pure flags,
+ * matching the already-audited permanent-flag behavior documented in
+ * docs/Chain_Audit.md (e.g. Chain 19's confirmation that isStone is a
+ * deliberate one-time-forever flag with no expiry). Critically, expiry
+ * here ONLY stops the periodic delta — it never clears the underlying
+ * flag itself, because dozens of unrelated story chains gate on these
+ * same flags staying true forever once set (e.g. `spice_trade_keep` gates
+ * 10 other cards' conditions across the whole spice-economy substory,
+ * `crusade_keep` gates 19 cards across the crusade storyline) — silently
+ * auto-clearing the flag on effect expiry would have broken all of those
+ * chains' long-term gating, a strictly worse regression than the bug
+ * being fixed. */
+const PERIODIC_EFFECT_TAGS: ReadonlySet<string> = new Set(
+  EFFECTS.filter((e) => STAT_KEYS.some((k) => e[k] !== null && e[k] !== undefined)).map((e) => e.tag)
+);
+
+/** Extracts the per-turn numeric delta from an Effects-sheet cell (e.g.
+ * "-3*", "2*", "lock") using the same magnitude-extraction as a card's own
+ * stat delta (parseRawValue/resolveValue already strip a trailing '*'
+ * correctly) — only the *interpretation* differs (applied every turn here,
+ * vs once at decision time for a card's own yes/no delta). */
+function resolvePeriodicDelta(raw: number | string | null | undefined): number | 'lock' | null {
+  return resolveValue(parseRawValue(raw));
+}
+
+/** Called once per turn (from applyDecision, after the card's own one-time
+ * stat delta has already been applied) — activates any newly-set flag that
+ * has a periodic Effect definition, and applies+decrements every currently
+ * active periodic effect. Must run AFTER applyCustom's flagsSet is known
+ * (to catch effects activated by THIS decision) but the activation and the
+ * per-turn application happen in the same call so a freshly-activated
+ * effect's first tick lands on the very turn it starts, matching Reigns'
+ * own "the effect begins immediately" convention (confirmed by the `plague`
+ * card's own narrative, which describes the outbreak as already underway
+ * the moment the flag is set). */
+function processActiveEffects(state: GameState, flagsSet: string[]) {
+  for (const flagName of flagsSet) {
+    if (!PERIODIC_EFFECT_TAGS.has(flagName)) continue;
+    if (state.activeEffects.has(flagName)) continue; // already active, don't reset turnsLeft
+    const effect = EFFECTS_BY_TAG.get(flagName);
+    if (!effect) continue;
+    state.activeEffects.set(flagName, { turnsLeft: effect.length ?? null });
+  }
+
+  for (const [tag, tracker] of state.activeEffects) {
+    const effect = EFFECTS_BY_TAG.get(tag);
+    if (!effect) {
+      state.activeEffects.delete(tag);
+      continue;
+    }
+    for (const key of STAT_KEYS) {
+      const resolved = resolvePeriodicDelta(effect[key]);
+      if (resolved === null) continue;
+      if (resolved === 'lock') {
+        state.flags[`${key}_locked`] = true;
+        continue;
+      }
+      if (state.flags[`${key}_locked`]) continue;
+      state.stats[key] = Math.max(0, Math.min(100, state.stats[key] + resolved));
+    }
+    if (tracker.turnsLeft !== null) {
+      const nextTurnsLeft = tracker.turnsLeft - 1;
+      if (nextTurnsLeft <= 0) {
+        // Effect's periodic window has ended — stop applying its delta.
+        // The underlying flag (state.flags[tag]) is deliberately left
+        // untouched; see PERIODIC_EFFECT_TAGS doc comment above.
+        state.activeEffects.delete(tag);
+      } else {
+        state.activeEffects.set(tag, { turnsLeft: nextTurnsLeft });
+      }
+    }
+  }
+}
+
 export interface TurnResult {
   card: CardRow;
   decision: 'yes' | 'no';
@@ -855,6 +963,7 @@ export function applyDecision(state: GameState, card: CardRow, decision: 'yes' |
   applyStatDelta(state, delta);
 
   const customResult = applyCustom(state, delta.custom);
+  processActiveEffects(state, customResult.flagsSet);
 
   // Card #819 (_barbatalk, conditions "nb_barba>5", weight="max") is the
   // ONE-TIME climax of the barbarian-negotiation mini-chain (#807-#818):
@@ -1035,6 +1144,15 @@ export interface SerializedGameState {
   flags: Record<string, boolean>;
   counters: Record<string, number>;
   activeBearers: string[];
+  /** Persists in-progress periodic Effects (see processActiveEffects) —
+   * e.g. a plague mid-outbreak or a lover's fading faith must resume with
+   * their correct remaining turnsLeft after the app is closed and
+   * reopened, not silently reset. Previously activeEffects was never
+   * populated at all (the bug this whole Effects system fixes), so there
+   * was nothing real to lose by dropping it on save/load; now that it
+   * holds live per-turn state, persisting it is required for "closing the
+   * app mid-reign is safe" to actually hold for these effects too. */
+  activeEffects: [string, { turnsLeft: number | null }][];
   lockedCards: [number, number | 'reign' | 'del'][];
   pendingNextCardId: number | null;
   pendingChainCardKey: string | null;
@@ -1055,6 +1173,7 @@ export function serializeGameState(state: GameState): SerializedGameState {
     flags: { ...state.flags },
     counters: { ...state.counters },
     activeBearers: [...state.activeBearers],
+    activeEffects: [...state.activeEffects.entries()],
     lockedCards: [...state.lockedCards.entries()],
     pendingNextCardId: state.pendingNextCardId,
     pendingChainCardKey: state.pendingChainCardKey,
@@ -1076,7 +1195,7 @@ export function deserializeGameState(saved: SerializedGameState): GameState {
     flags: { ...saved.flags },
     counters: { ...saved.counters },
     activeBearers: new Set(saved.activeBearers),
-    activeEffects: new Map(), // not persisted — effects are re-derivable from flags/counters if ever needed
+    activeEffects: new Map(saved.activeEffects ?? []), // defaults to empty for saves made before this feature existed
     lockedCards: new Map(saved.lockedCards),
     pendingNextCardId: saved.pendingNextCardId,
     pendingChainCardKey: saved.pendingChainCardKey,
