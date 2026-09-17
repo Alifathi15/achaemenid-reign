@@ -1,13 +1,20 @@
 /**
  * valueParser.ts — parses raw stat-delta cell values from the Cards/Effects
- * sheets, per the confirmed engine spec (Achaemenid_Engine_Spec.md §"?", "*", "lock").
+ * sheets, per ENGINE_SPEC.md (confirmed via ARM64/Capstone disassembly of
+ * the original Reigns IL2CPP binary, absalan_reversed_data.tar.gz).
  *
  * Rules (confirmed via disassembly of the original Reigns engine):
  *  1. Plain number string -> parse directly.
  *  2. Contains "lock" -> special LOCK marker (locks that stat until unlocked).
  *  3. Contains "?":
  *      - split on '?' removing empty entries
- *      - 1 piece left  -> use that number directly (the '?' had no numeric effect)
+ *      - 1 piece left  -> RandInt(0, N) — single-sided '?' means "random
+ *        between 0 and N", NOT "N with no random effect". Confirmed by
+ *        ENGINE_SPEC.md §3: Outcome.ctor(string,string,bool) checks for '?',
+ *        splits both sides, calls the native RandInt(min,max) either way —
+ *        there is no code path where a lone '?' is a no-op. A previous
+ *        reading of this project treated 1-piece '?' as inert; that was an
+ *        unconfirmed guess and is now corrected against the real binary.
  *      - 2 pieces left -> RandInt(min, max) inclusive, re-rolled every time this
  *                          value is evaluated
  *  4. Contains "*" -> use only the piece BEFORE '*' as the number; '*' is a
@@ -46,8 +53,10 @@ export function parseRawValue(raw: number | string | null | undefined): ParsedVa
   if (s.includes('?')) {
     const pieces = s.split('?').filter((p) => p !== '');
     if (pieces.length === 1) {
+      // single-sided '?' (either "N?" or "?N") -> RandInt(0, N), confirmed
+      // ground truth from the decompiled Outcome constructor.
       const n = Number(pieces[0]);
-      return Number.isFinite(n) ? { kind: 'number', value: n } : { kind: 'none' };
+      return Number.isFinite(n) ? { kind: 'random', min: 0, max: n } : { kind: 'none' };
     }
     if (pieces.length >= 2) {
       const a = Number(pieces[0]);
@@ -62,6 +71,7 @@ export function parseRawValue(raw: number | string | null | undefined): ParsedVa
   const n = Number(s);
   return Number.isFinite(n) ? { kind: 'number', value: n } : { kind: 'none' };
 }
+
 
 /** Resolves a ParsedValue to a concrete number to apply right now (re-rolls randoms). */
 export function resolveValue(parsed: ParsedValue): number | 'lock' | null {
